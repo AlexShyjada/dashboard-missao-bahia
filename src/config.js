@@ -19,7 +19,12 @@ export function readConfig(env) {
 
     // Valores tratados como concluído e como fora da conta.
     // A comparação ignora acentos, maiúsculas e pontuação.
-    doneValues: get("DONE_VALUES", "feito,assinado,concluido,concluida,pago,ok,sim,pronto,enviado,emitido,finalizado"),
+    // "Feito" só vale como concluído em coluna que não tem assinatura.
+    doneValues: get("DONE_VALUES", "feito,concluido,concluida,pago,ok,sim,pronto,enviado,emitido,finalizado"),
+
+    // Numa coluna de documento, a assinatura é o fim da linha e "Feito" vira
+    // etapa intermediária (documento pronto, ainda sem assinar).
+    signedValues: get("SIGNED_VALUES", "assinado,assinada,assinados,assinadas"),
     naValues: get("NA_VALUES", "nao precisa,nao se aplica,n/a,na,nao aplicavel,dispensado"),
 
     // Segundos que o CDN pode servir a mesma resposta sem chamar a função.

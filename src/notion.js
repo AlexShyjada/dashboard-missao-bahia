@@ -18,10 +18,19 @@ const STAGES = [
     aliases: ["Já ligou", "Ligou", "Ja ligou?"],
   },
   {
+    key: "procuracao",
+    label: "Procuração advogado",
+    property: "Já fez a procuração Advogado?",
+    aliases: ["Já fez a procuração Advogado", "Procuração advogado", "Fez a procuracao"],
+  },
+  {
+    // Marcador de entrada, não tarefa de execução: aparece na tela mas fica
+    // fora do percentual geral e do funil.
     key: "fundao",
     label: "Aceitou Fundão",
     property: "Aceitou Fundão?",
     aliases: ["Aceitou Fundão", "Aceitou fundao", "Fundão"],
+    excludeFromOverall: true,
   },
   {
     key: "material",
@@ -245,20 +254,38 @@ function schemaOptions(definition) {
   return [];
 }
 
-function classify(label, doneValues, naValues) {
+/**
+ * Classifica um valor em cinco estados.
+ *
+ * Colunas de documento têm três degraus: Pendente -> Feito -> Assinado. Nelas,
+ * "Feito" significa documento confeccionado mas ainda sem assinatura, então vira
+ * `partial` e não conta como concluído. Numa coluna sem opção de assinatura
+ * ("Já foi Pago?", por exemplo) "Feito" continua sendo o fim da linha.
+ *
+ * @param {boolean} columnHasSigned a coluna oferece algum valor de assinatura
+ */
+function classify(label, cfg, columnHasSigned) {
   const key = norm(label);
   if (!key) return "empty";
-  if (naValues.includes(key)) return "na";
-  if (doneValues.includes(key)) return "done";
+  if (cfg.na.includes(key)) return "na";
+  if (cfg.signed.includes(key)) return "done";
+  if (cfg.done.includes(key)) return columnHasSigned ? "partial" : "done";
   return "pending";
 }
+
+/** Ordem de leitura das barras: o progresso cresce da esquerda para a direita. */
+const KIND_ORDER = { done: 0, partial: 1, pending: 2, empty: 3, na: 4 };
 
 /* -------------------------------------------------------------- agregacao */
 
 export function buildStats(pages, schema, env) {
-  const doneValues = parseList(env.DONE_VALUES, "feito,assinado,concluido,pago,ok,sim");
-  const naValues = parseList(env.NA_VALUES, "nao precisa,nao se aplica,n/a");
+  const cfg = {
+    done: parseList(env.DONE_VALUES, "feito,concluido,pago,ok,sim"),
+    signed: parseList(env.SIGNED_VALUES, "assinado,assinada"),
+    na: parseList(env.NA_VALUES, "nao precisa,nao se aplica,n/a"),
+  };
 
+  const total = pages.length;
   let overallDone = 0;
   let overallApplicable = 0;
 
@@ -268,76 +295,79 @@ export function buildStats(pages, schema, env) {
 
     if (!propertyName) {
       return {
-        ...stage,
-        propertyFound: false,
-        propertyName: null,
-        type: null,
-        total: pages.length,
-        applicable: 0,
-        done: 0,
-        pct: null,
-        breakdown: [],
+        ...stage, propertyFound: false, propertyName: null, type: null,
+        total, applicable: 0, done: 0, partial: 0, pct: null,
+        requiresSignature: false, breakdown: [],
       };
     }
 
-    // Semeia os buckets com as opções do schema para manter a ordem do Notion,
-    // inclusive as que ainda não têm nenhum registro.
-    const buckets = new Map();
+    // 1ª passada: descobre todos os rótulos que a coluna usa, somando as opções
+    // do schema (ordem do Notion, inclusive as zeradas) e os valores gravados.
+    const counts = new Map();
+    const meta = new Map();
     for (const option of schemaOptions(definition)) {
-      buckets.set(option.name, {
-        label: option.name,
-        notionColor: option.color ?? null,
-        count: 0,
-        kind: classify(option.name, doneValues, naValues),
-      });
+      counts.set(option.name, 0);
+      meta.set(option.name, { notionColor: option.color ?? null, fromSchema: true });
     }
-
     for (const page of pages) {
       const raw = readValue(page.properties?.[propertyName]);
       const label = raw ?? EMPTY_LABEL;
-
-      if (!buckets.has(label)) {
-        buckets.set(label, {
-          label,
-          notionColor: null,
-          count: 0,
-          kind: raw == null ? "empty" : classify(label, doneValues, naValues),
-        });
+      if (!counts.has(label)) {
+        counts.set(label, 0);
+        meta.set(label, { notionColor: null, fromSchema: false, isEmpty: raw == null });
       }
-      buckets.get(label).count += 1;
+      counts.set(label, counts.get(label) + 1);
     }
 
-    const breakdown = [...buckets.values()];
-    const total = pages.length;
-    const notApplicable = breakdown.filter((b) => b.kind === "na").reduce((s, b) => s + b.count, 0);
-    const done = breakdown.filter((b) => b.kind === "done").reduce((s, b) => s + b.count, 0);
-    const applicable = total - notApplicable;
+    // Se a coluna oferece "Assinado", ela é um documento: "Feito" passa a ser
+    // etapa intermediária e só a assinatura conta como concluída.
+    const requiresSignature = [...counts.keys()].some((label) => cfg.signed.includes(norm(label)));
 
-    overallDone += done;
-    overallApplicable += applicable;
+    const breakdown = [...counts.entries()].map(([label, count]) => ({
+      label,
+      count,
+      notionColor: meta.get(label)?.notionColor ?? null,
+      kind: meta.get(label)?.isEmpty ? "empty" : classify(label, cfg, requiresSignature),
+      pct: total > 0 ? count / total : 0,
+    }));
+
+    // Progresso cresce da esquerda para a direita, igual em todas as barras;
+    // dentro de um mesmo estado, a ordem do Notion é preservada.
+    breakdown.sort((a, b) => KIND_ORDER[a.kind] - KIND_ORDER[b.kind]);
+
+    const sum = (kind) => breakdown.filter((b) => b.kind === kind).reduce((acc, b) => acc + b.count, 0);
+    const done = sum("done");
+    const partial = sum("partial");
+    const applicable = total - sum("na");
+
+    if (!stage.excludeFromOverall) {
+      overallDone += done;
+      overallApplicable += applicable;
+    }
 
     return {
       ...stage,
       propertyFound: true,
       propertyName,
       type: definition?.type ?? null,
+      requiresSignature,
       total,
       applicable,
       done,
+      partial,
       pct: applicable > 0 ? done / applicable : null,
-      breakdown: breakdown.map((b) => ({
-        ...b,
-        pct: total > 0 ? b.count / total : 0,
-      })),
+      breakdown,
     };
   });
 
   return {
-    totalCandidates: pages.length,
+    totalCandidates: total,
     overall: {
       done: overallDone,
       applicable: overallApplicable,
       pct: overallApplicable > 0 ? overallDone / overallApplicable : null,
+      // Quantas etapas realmente entram na conta geral.
+      stages: stages.filter((st) => !st.excludeFromOverall && st.propertyFound).length,
     },
     stages,
   };
@@ -373,6 +403,7 @@ export async function fetchStats(config) {
 
   const stats = buildStats(pages, source?.properties ?? {}, {
     DONE_VALUES: config.doneValues,
+    SIGNED_VALUES: config.signedValues,
     NA_VALUES: config.naValues,
   });
 

@@ -22,6 +22,10 @@
     --st-done:    #0ca30c;
     --st-done-2:  #0a7f0a;
     --st-done-3:  #085f08;
+    /* Documento pronto, ainda sem assinatura: verde clareado, para a barra
+       crescer em direção ao verde cheio da esquerda. */
+    --st-partial: #93d893;
+    --st-part-2:  #b9e6b9;
     --st-pending: #fab219;
     --st-pend-2:  #d99400;
     --st-pend-3:  #b87a00;
@@ -49,6 +53,8 @@
       --st-done:    #0ca30c;
       --st-done-2:  #14c014;
       --st-done-3:  #5cd45c;
+      --st-partial: #93d893;
+      --st-part-2:  #b9e6b9;
       --st-pending: #fab219;
       --st-pend-2:  #d99400;
       --st-pend-3:  #f7cd6b;
@@ -64,6 +70,7 @@
     --muted: #898781; --grid: #2c2c2a; --axis: #383835;
     --border: rgba(255,255,255,0.10); --accent: #3987e5; --track: #262624;
     --st-done: #0ca30c; --st-done-2: #14c014; --st-done-3: #5cd45c;
+    --st-partial: #93d893; --st-part-2: #b9e6b9;
     --st-pending: #fab219; --st-pend-2: #d99400; --st-pend-3: #f7cd6b;
     --st-na: #898781; --st-na-2: #a5a39c; --st-empty: #4a4a46;
     --shadow: 0 1px 2px rgba(0,0,0,0.4), 0 8px 24px rgba(0,0,0,0.28);
@@ -169,6 +176,18 @@
   .card-value { font-size: 19px; font-weight: 640; letter-spacing: -0.01em;
                 flex: none; white-space: nowrap; }
   .card-value small { font-size: 12px; font-weight: 500; color: var(--muted); }
+  .chip {
+    font-size: 10.5px; font-weight: 600; letter-spacing: 0.03em;
+    text-transform: uppercase; color: var(--muted);
+    border: 1px solid var(--border); border-radius: 999px;
+    padding: 2px 7px; white-space: nowrap; flex: none;
+  }
+  .card-note {
+    font-size: 12px; color: var(--ink-2); margin: 10px 0 0;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .card-note .sw { width: 9px; height: 9px; border-radius: 2px; flex: none; }
+  .card-note b { font-weight: 620; font-variant-numeric: tabular-nums; color: var(--ink); }
   .card-prop {
     font-size: 11.5px; color: var(--muted); margin: 2px 0 14px 20px;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
@@ -367,13 +386,14 @@
   // da mesma matiz; a legenda e a tabela desambiguam pelo nome.
   var RAMPS = {
     done:    ["--st-done", "--st-done-2", "--st-done-3"],
+    partial: ["--st-partial", "--st-part-2"],
     pending: ["--st-pending", "--st-pend-2", "--st-pend-3"],
     na:      ["--st-na", "--st-na-2"],
     empty:   ["--st-empty"]
   };
 
   function paint(breakdown) {
-    var seen = { done: 0, pending: 0, na: 0, empty: 0 };
+    var seen = { done: 0, partial: 0, pending: 0, na: 0, empty: 0 };
     return breakdown.map(function (bucket) {
       var ramp = RAMPS[bucket.kind] || RAMPS.empty;
       var index = Math.min(seen[bucket.kind] || 0, ramp.length - 1);
@@ -388,11 +408,15 @@
   // Icone por estado: a cor nunca carrega o significado sozinha.
   var ICONS = {
     done:    '<svg class="ic" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 8.5l3.2 3.2L13 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    partial: '<svg class="ic" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.7"/><path d="M8 2.3a5.7 5.7 0 010 11.4z" fill="currentColor"/></svg>',
     pending: '<svg class="ic" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.8"/><path d="M8 4.6V8l2.4 1.6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',
     na:      '<svg class="ic" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3.5 8h9" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
     empty:   '<svg class="ic" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.6" stroke-dasharray="2.4 2.2"/></svg>'
   };
-  var KIND_WORD = { done: "concluído", pending: "pendente", na: "não se aplica", empty: "em branco" };
+  var KIND_WORD = {
+    done: "concluído", partial: "pronto, aguardando assinatura",
+    pending: "pendente", na: "não se aplica", empty: "em branco"
+  };
 
   /* -------------------------------------------------------------- tooltip */
 
@@ -413,17 +437,28 @@
 
   /* ------------------------------------------------------------ renderers */
 
+  // Etapas que contam vêm numeradas, na ordem do fluxo. As que ficam fora da
+  // conta vão para o fim, sem número, com o selo "fora do cálculo".
+  function orderedStages(stages) {
+    var counted = stages.filter(function (s) { return !s.excludeFromOverall; });
+    var aside = stages.filter(function (s) { return s.excludeFromOverall; });
+    return counted.map(function (s, i) { return { stage: s, step: String(i + 1) }; })
+      .concat(aside.map(function (s) { return { stage: s, step: null }; }));
+  }
+
   function renderCards(data) {
     els.cards.innerHTML = "";
 
-    data.stages.forEach(function (stage, index) {
+    orderedStages(data.stages).forEach(function (entry) {
+      var stage = entry.stage;
+      var step = entry.step;
       var card = document.createElement("section");
       card.className = "card";
 
       if (!stage.propertyFound) {
         card.innerHTML =
           '<div class="card-head"><div class="card-name">' +
-          '<span class="step-no">' + (index + 1) + "</span>" +
+          '<span class="step-no">' + (step || "–") + "</span>" +
           '<h3 class="card-title">' + esc(stage.label) + "</h3></div></div>" +
           '<p class="card-prop">&nbsp;</p>' +
           '<div class="missing">Coluna <b>' + esc(stage.property) + "</b> não encontrada na base. " +
@@ -436,8 +471,9 @@
       var head =
         '<div class="card-head">' +
           '<div class="card-name">' +
-            '<span class="step-no">' + (index + 1) + "</span>" +
+            '<span class="step-no">' + (step || "–") + "</span>" +
             '<h3 class="card-title">' + esc(stage.label) + "</h3>" +
+            (step ? "" : '<span class="chip" title="Não entra no percentual geral nem no funil">fora do cálculo</span>') +
           "</div>" +
           '<div class="card-value">' + pct(stage.pct) +
             " <small>" + stage.done + "/" + stage.applicable + "</small></div>" +
@@ -476,12 +512,28 @@
       card.innerHTML = head;
       card.appendChild(bar);
       card.appendChild(legend);
+
+      // Numa coluna de documento, o que trava a etapa é a assinatura.
+      if (stage.requiresSignature && stage.partial > 0) {
+        var note = document.createElement("p");
+        note.className = "card-note";
+        note.innerHTML =
+          '<span class="sw" style="background:var(--st-partial)"></span>' +
+          "<span><b>" + stage.partial + "</b> " +
+          (stage.partial === 1 ? "documento pronto, esperando assinatura" :
+                                 "documentos prontos, esperando assinatura") + "</span>";
+        card.appendChild(note);
+      }
+
       els.cards.appendChild(card);
     });
   }
 
   function renderFunnel(data) {
-    els.funnel.innerHTML = data.stages.map(function (stage, index) {
+    // O funil mostra só a sequência que conta; o Fundão fica de fora.
+    var counted = data.stages.filter(function (s) { return !s.excludeFromOverall; });
+
+    els.funnel.innerHTML = counted.map(function (stage, index) {
       var width = stage.pct === null || stage.pct === undefined ? 0 : stage.pct * 100;
       var value = stage.propertyFound
         ? "<b>" + stage.done + "</b> / " + stage.applicable + " · " + pct(stage.pct)
@@ -496,7 +548,7 @@
 
   function renderTable(data) {
     var labels = [];
-    data.stages.forEach(function (stage) {
+    orderedStages(data.stages).map(function (e) { return e.stage; }).forEach(function (stage) {
       stage.breakdown.forEach(function (bucket) {
         if (bucket.count > 0 && labels.indexOf(bucket.label) === -1) labels.push(bucket.label);
       });
@@ -506,13 +558,15 @@
       labels.map(function (l) { return "<th>" + esc(l) + "</th>"; }).join("") +
       "<th>Concluído</th></tr></thead>";
 
-    var body = "<tbody>" + data.stages.map(function (stage, index) {
+    var body = "<tbody>" + orderedStages(data.stages).map(function (entry) {
+      var stage = entry.stage;
       var cells = labels.map(function (label) {
         var found = null;
         stage.breakdown.forEach(function (b) { if (b.label === label) found = b; });
         return "<td>" + (found && found.count ? found.count : "—") + "</td>";
       }).join("");
-      return "<tr><td>" + (index + 1) + ". " + esc(stage.label) + "</td>" +
+      return "<tr><td>" + (entry.step ? entry.step + ". " : "") + esc(stage.label) +
+        (entry.step ? "" : " (fora do cálculo)") + "</td>" +
         "<td>" + esc(stage.propertyName || stage.property) + "</td>" + cells +
         "<td>" + (stage.propertyFound ? stage.done + "/" + stage.applicable + " (" + pct(stage.pct) + ")" : "—") + "</td></tr>";
     }).join("") + "</tbody>";
@@ -524,9 +578,10 @@
     els.hero.innerHTML = (data.overall.pct === null ? "—" : Math.round(data.overall.pct * 100)) + "<span>%</span>";
     els.heroMeter.style.width = (data.overall.pct ? data.overall.pct * 100 : 0) + "%";
     els.heroNote.textContent =
-      "Média das 6 etapas. Quem está como \u201cNão precisa\u201d fica fora da conta.";
+      "Média das " + data.overall.stages + " etapas que contam. Quem está como " +
+      "\u201cNão precisa\u201d fica fora da conta.";
 
-    var found = data.stages.filter(function (s) { return s.propertyFound; });
+    var found = data.stages.filter(function (s) { return s.propertyFound && !s.excludeFromOverall; });
 
     // Gargalo = a etapa com a maior queda de concluidos em relacao a anterior.
     var worst = null;
@@ -535,8 +590,19 @@
       if (!worst || drop > worst.drop) worst = { stage: found[i], drop: drop };
     }
 
+    // Documentos prontos esperando assinatura, somando todas as etapas de
+    // documento. Costuma ser o número mais acionável da tela.
+    var awaiting = found.reduce(function (acc, s) {
+      return acc + (s.requiresSignature ? (s.partial || 0) : 0);
+    }, 0);
+
     els.heroStats.innerHTML =
       '<div class="stat"><b>' + data.totalCandidates + "</b><small>candidatos na base</small></div>" +
+      (awaiting > 0
+        ? '<div class="stat"><b style="color:var(--ink)">' + awaiting +
+          "</b><small>" + (awaiting === 1 ? "documento esperando assinatura"
+                                          : "documentos esperando assinatura") + "</small></div>"
+        : "") +
       '<div class="stat"><b>' + data.overall.done + " <span style=\"font-weight:500;color:var(--muted)\">/ " +
         data.overall.applicable + "</span></b><small>marcações concluídas</small></div>" +
       (worst && worst.drop > 0

@@ -1,7 +1,6 @@
 # A pasta public/ é servida como está; não há etapa de build.
 [build]
   publish = "public"
-  command = ""
 
 [functions]
   directory = "netlify/functions"

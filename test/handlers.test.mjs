@@ -11,7 +11,8 @@ const statusProp = (o) => ({ type: "status", status: { options: o.map((name) => 
 const SCHEMA = {
   "Nome": { type: "title", title: {} },
   "Já ligou?": statusProp(["Feito", "Pendente"]),
-  "Aceitou Fundão?": statusProp(["Feito", "Pendente"]),
+  "Aceitou Fundão?": statusProp(["Sim", "Não"]),
+  "Já fez a procuração Advogado?": statusProp(["Pendente", "Feito", "Assinado"]),
   "Já foi feito o Material?": statusProp(["Feito", "Pendente"]),
   "Confecionado na gráfica?": statusProp(["Feito", "Pendente"]),
   "Já foi Pago?": statusProp(["Feito", "Pendente"]),
@@ -23,7 +24,8 @@ const ALL = Array.from({ length: 150 }, (_, i) => ({
   properties: {
     "Nome": { type: "title", title: [{ plain_text: "Candidato " + i }] },
     "Já ligou?": { type: "status", status: { name: i < 120 ? "Feito" : "Pendente" } },
-    "Aceitou Fundão?": { type: "status", status: { name: i < 90 ? "Feito" : "Pendente" } },
+    "Aceitou Fundão?": { type: "status", status: { name: i < 90 ? "Sim" : "Não" } },
+    "Já fez a procuração Advogado?": { type: "status", status: { name: i < 30 ? "Assinado" : i < 100 ? "Feito" : "Pendente" } },
     "Já foi feito o Material?": { type: "status", status: null },
     "Confecionado na gráfica?": { type: "status", status: { name: "Pendente" } },
     "Já foi Pago?": { type: "status", status: { name: "Pendente" } },
@@ -54,7 +56,8 @@ globalThis.fetch = async (url, init) => {
 const ENV = {
   NOTION_TOKEN: "ntn_fake", NOTION_DATABASE_ID: DB,
   DASHBOARD_TITLE: "Missão Bahia", DASHBOARD_SUBTITLE: "Base de candidatos",
-  DONE_VALUES: "feito,assinado,concluido,pago,ok,sim", NA_VALUES: "nao precisa,nao se aplica,n/a",
+  DONE_VALUES: "feito,concluido,pago,ok,sim", SIGNED_VALUES: "assinado,assinada",
+  NA_VALUES: "nao precisa,nao se aplica,n/a",
   EDGE_TTL_SECONDS: "20",
 };
 
@@ -76,6 +79,12 @@ assert.equal(body.totalCandidates, 150, "paginação não trouxe as 150 páginas
 const by = Object.fromEntries(body.stages.map((s) => [s.key, s]));
 assert.equal(by.ligou.done, 120);
 assert.equal(by.fundao.done, 90);
+assert.equal(by.fundao.excludeFromOverall, true, "o Fundão precisa ficar fora da conta geral");
+assert.equal(by.procuracao.requiresSignature, true);
+assert.equal(by.procuracao.done, 30, "só assinados contam");
+assert.equal(by.procuracao.partial, 70, "os 'Feito' ficam como aguardando assinatura");
+assert.equal(body.overall.stages, 6, "seis etapas na conta geral, sem o Fundão");
+assert.ok(!body.stages.filter((s) => !s.excludeFromOverall).some((s) => s.key === "fundao"));
 assert.equal(by.grafica.propertyFound, true, "coluna com o typo 'Confecionado' não foi encontrada");
 assert.equal(by.material.breakdown.find((b) => b.label === "Sem preenchimento").count, 150);
 assert.equal(by.certificado.applicable, 75, "'Não precisa' deveria sair do denominador");

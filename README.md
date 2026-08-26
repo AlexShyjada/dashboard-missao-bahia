@@ -1,8 +1,11 @@
 # Dashboard da Base de candidatos — Missão Bahia
 
 Página pública que lê a base do Notion e mostra a progressão das seis etapas da
-operação: **Já ligou**, **Aceitou Fundão**, **Material de campanha**,
+operação: **Já ligou**, **Procuração advogado**, **Material de campanha**,
 **Confeccionado na gráfica**, **Pagamento** e **Certificado de doação**.
+
+**Aceitou Fundão** aparece como card, marcado *fora do cálculo*: é marcador de
+entrada, não tarefa de execução, então não entra no percentual geral nem no funil.
 
 Hospedado na Netlify: a pasta `public/` é servida como está, e uma Netlify
 Function responde em `/api/stats`. Toda conversa com o Notion acontece no
@@ -126,14 +129,61 @@ Ajuste a lista `STAGES` em `src/notion.js`. Cada etapa tem um `property` (o nome
 exato) e `aliases`. O casamento ignora acentos, maiúsculas e pontuação, e já
 tolera o typo atual `Confecionado` com um `c` só.
 
+### A classificação, coluna por coluna
+
+Revisada com a operação em 26/08/2026. Em negrito, o que conta como concluído.
+
+| # | Coluna no Notion | Não iniciado | Intermediário | Concluído | Fora da conta |
+|---|---|---|---|---|---|
+| 1 | Já ligou? | Não | — | **Sim** | — |
+| 2 | Já fez a procuração Advogado? | Pendente | Feito | **Assinado** | — |
+| 3 | Já foi feito o Material? | Pendente | — | **Feito** | — |
+| 4 | Confecionado na gráfica? | Pendente | — | **Feito** | — |
+| 5 | Já foi Pago? | Pendente | — | **Feito** | — |
+| 6 | Certificado de doação (Homens) | Pendente | Feito | **Assinado** | Não precisa |
+| — | Aceitou Fundão? | — | — | — | a etapa inteira |
+
+Decisões que sustentam essa tabela:
+
+- "Não" em "Já ligou?" é não-iniciado, não é recusa. Quem recusa não sai do
+  denominador.
+- Material, gráfica e pagamento são binários: "Feito" fecha mesmo.
+- Procuração e certificado são documentos: "Feito" é o documento confeccionado,
+  e só a assinatura fecha.
+
+### Colunas de documento: a assinatura é o que fecha a etapa
+
+Numa coluna de documento o fluxo tem três degraus: **Pendente → Feito →
+Assinado**. "Feito" quer dizer documento confeccionado mas ainda sem assinatura,
+então **não conta como concluído**: entra como estado intermediário, com verde
+claro na barra e uma linha no card dizendo quantos estão prontos esperando
+assinatura. Só "Assinado" fecha a etapa e entra no percentual.
+
+Isso é detectado **por coluna, automaticamente**: se a coluna oferece algum valor
+de `SIGNED_VALUES`, ela é tratada como documento. Se não oferece — "Já foi Pago?",
+por exemplo — "Feito" continua sendo o fim da linha. Não há lista de colunas
+codificada em lugar nenhum: crie a opção "Assinado" numa coluna do Notion e o
+dashboard passa a tratá-la assim sozinho, sem redeploy.
+
+> **Pendência aberta:** o certificado de doação precisa de assinatura, mas a
+> coluna `Certificado de doação (Homens)` ainda não tem a opção `Assinado`
+> criada no Notion. Enquanto não tiver, o "Feito" daquela coluna segue contando
+> como concluído. Criar a opção resolve.
+
 ### Mudar o que conta como concluído
 
-Variáveis `DONE_VALUES` e `NA_VALUES` (na Netlify, ou os padrões em
-`src/config.js`). Qualquer valor fora das duas listas conta como pendente e
+Variáveis `DONE_VALUES`, `SIGNED_VALUES` e `NA_VALUES` (na Netlify, ou os padrões
+em `src/config.js`). Qualquer valor fora das três listas conta como pendente e
 aparece no gráfico com o nome que tem no Notion.
 
 `NA_VALUES` sai do denominador: quem está como "Não precisa" no certificado de
 doação não puxa o percentual da etapa para baixo.
+
+### Tirar ou acrescentar uma etapa
+
+Lista `STAGES` em `src/notion.js`. Para uma etapa aparecer sem entrar na conta,
+marque `excludeFromOverall: true` (é o que o Fundão faz). Para sumir de vez,
+apague o bloco.
 
 ### Mudar a cadência
 
@@ -165,9 +215,10 @@ npm test
 
 Três suítes:
 
-- `aggregate.test.mjs` — agregação: contagem por etapa, exclusão de "Não precisa"
-  do denominador, células vazias, casamento do nome da coluna com o typo
-  corrigido, leitura de checkbox / files / select.
+- `aggregate.test.mjs` — agregação: o degrau de assinatura, a ordem fixa das
+  barras, o Fundão fora da conta, exclusão de "Não precisa" do denominador,
+  células vazias, casamento do nome da coluna com o typo corrigido, leitura de
+  checkbox / files / select.
 - `handlers.test.mjs` — os dois adaptadores contra uma API do Notion simulada:
   paginação de 150 candidatos, cabeçalhos de cache, `?fresh=1` e os erros
   prováveis (sem token, base sem acesso).
