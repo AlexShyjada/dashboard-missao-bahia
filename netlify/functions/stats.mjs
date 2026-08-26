@@ -1,8 +1,11 @@
 /**
  * Netlify Function (v2) — GET /api/stats
  *
- * Guarda o token do Notion no ambiente e devolve só contagens agregadas.
- * Nome, WhatsApp, número de campanha e documentos nunca saem daqui.
+ * Guarda o token do Notion no ambiente. A resposta é majoritariamente
+ * contagens agregadas, com uma exceção deliberada: `candidatesPending` traz
+ * nome, foto e WhatsApp de quem tem pendência (ver src/notion.js e
+ * CLAUDE.md > Privacidade). O link do dashboard é público e sem login, então
+ * esse dado fica visível para qualquer um que tiver o link.
  */
 import { fetchStats, describeError } from "../../src/notion.js";
 import { readConfig } from "../../src/config.js";

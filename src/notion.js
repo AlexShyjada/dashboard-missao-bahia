@@ -60,6 +60,19 @@ const STAGES = [
   },
 ];
 
+/**
+ * Colunas de identificação do candidato. Só alimentam a seção "Candidatos com
+ * pendência" — nunca os agregados por etapa. Exposição deliberada, decidida
+ * com o usuário (ver CLAUDE.md > Privacidade): o link do dashboard é público
+ * e sem login, então nome/foto/WhatsApp de quem está pendente ficam visíveis
+ * para qualquer um que tiver o link.
+ */
+const CANDIDATE_FIELDS = {
+  name: { property: "Nome", aliases: ["Nome completo", "Candidato", "Nome do candidato"] },
+  photo: { property: "Foto", aliases: ["Foto do candidato", "Foto candidato"] },
+  whatsapp: { property: "WhatsApp", aliases: ["Whatsapp", "Whats", "Telefone"] },
+};
+
 const EMPTY_LABEL = "Sem preenchimento";
 
 /* ------------------------------------------------------------------ utils */
@@ -243,6 +256,35 @@ function readValue(property) {
   }
 }
 
+/** Título (nome do candidato) como texto simples. */
+function readTitleValue(property) {
+  if (!property || property.type !== "title") return null;
+  return (property.title ?? []).map((t) => t.plain_text).join("").trim() || null;
+}
+
+/** URL do primeiro arquivo de uma coluna Files & media (ex.: foto). */
+function readFileUrlValue(property) {
+  if (!property || property.type !== "files") return null;
+  const first = (property.files ?? [])[0];
+  if (!first) return null;
+  if (first.type === "external") return first.external?.url ?? null;
+  if (first.type === "file") return first.file?.url ?? null;
+  return null;
+}
+
+/** Texto livre (ex.: WhatsApp), aceitando telefone, texto ou URL. */
+function readTextLikeValue(property) {
+  if (!property) return null;
+  switch (property.type) {
+    case "phone_number": return property.phone_number || null;
+    case "rich_text":    return (property.rich_text ?? []).map((t) => t.plain_text).join("").trim() || null;
+    case "title":        return (property.title ?? []).map((t) => t.plain_text).join("").trim() || null;
+    case "url":          return property.url || null;
+    case "number":        return property.number == null ? null : String(property.number);
+    default: return null;
+  }
+}
+
 /** Ordem das opções como o Notion as define, para o empilhamento ficar estável. */
 function schemaOptions(definition) {
   if (!definition) return [];
@@ -289,6 +331,10 @@ export function buildStats(pages, schema, env) {
   let overallDone = 0;
   let overallApplicable = 0;
 
+  // Pendências por candidato, alinhado por índice com `pages`. Só etapas que
+  // entram na conta geral viram pendência (Fundão, por exemplo, nunca entra).
+  const pagePendencies = pages.map(() => []);
+
   const stages = STAGES.map((stage) => {
     const propertyName = matchProperty(schema, stage);
     const definition = propertyName ? schema[propertyName] : null;
@@ -301,27 +347,43 @@ export function buildStats(pages, schema, env) {
       };
     }
 
-    // 1ª passada: descobre todos os rótulos que a coluna usa, somando as opções
-    // do schema (ordem do Notion, inclusive as zeradas) e os valores gravados.
+    // 1ª passada: lê o valor de cada página e descobre se a coluna oferece
+    // "Assinado" (olhando as opções do schema e os valores gravados), antes
+    // de classificar qualquer coisa — a classificação de "Feito" depende disso.
+    const optionNames = schemaOptions(definition).map((o) => o.name);
+    const pageReads = pages.map((page) => {
+      const raw = readValue(page.properties?.[propertyName]);
+      return { label: raw ?? EMPTY_LABEL, isEmpty: raw == null };
+    });
+    const requiresSignature = [...new Set([...optionNames, ...pageReads.map((p) => p.label)])]
+      .some((label) => cfg.signed.includes(norm(label)));
+
+    // 2ª passada: soma as contagens (partindo das opções do schema, ordem do
+    // Notion, inclusive as zeradas) e registra a pendência de quem não fechou.
     const counts = new Map();
     const meta = new Map();
     for (const option of schemaOptions(definition)) {
       counts.set(option.name, 0);
       meta.set(option.name, { notionColor: option.color ?? null, fromSchema: true });
     }
-    for (const page of pages) {
-      const raw = readValue(page.properties?.[propertyName]);
-      const label = raw ?? EMPTY_LABEL;
+    pageReads.forEach(({ label, isEmpty }, i) => {
       if (!counts.has(label)) {
         counts.set(label, 0);
-        meta.set(label, { notionColor: null, fromSchema: false, isEmpty: raw == null });
+        meta.set(label, { notionColor: null, fromSchema: false, isEmpty });
       }
       counts.set(label, counts.get(label) + 1);
-    }
 
-    // Se a coluna oferece "Assinado", ela é um documento: "Feito" passa a ser
-    // etapa intermediária e só a assinatura conta como concluída.
-    const requiresSignature = [...counts.keys()].some((label) => cfg.signed.includes(norm(label)));
+      if (!stage.excludeFromOverall) {
+        const kind = isEmpty ? "empty" : classify(label, cfg, requiresSignature);
+        if (kind === "pending" || kind === "empty" || kind === "partial") {
+          pagePendencies[i].push({
+            stageKey: stage.key,
+            stageLabel: stage.label,
+            status: kind === "partial" ? "partial" : "pending",
+          });
+        }
+      }
+    });
 
     const breakdown = [...counts.entries()].map(([label, count]) => ({
       label,
@@ -360,6 +422,22 @@ export function buildStats(pages, schema, env) {
     };
   });
 
+  // Nome, foto e WhatsApp só saem para quem tem pendência — nunca para a base
+  // inteira, e nunca junto dos agregados por etapa.
+  const nameProp = matchProperty(schema, CANDIDATE_FIELDS.name);
+  const photoProp = matchProperty(schema, CANDIDATE_FIELDS.photo);
+  const whatsappProp = matchProperty(schema, CANDIDATE_FIELDS.whatsapp);
+
+  const candidatesPending = pages
+    .map((page, i) => ({
+      name: nameProp ? readTitleValue(page.properties?.[nameProp]) : null,
+      photoUrl: photoProp ? readFileUrlValue(page.properties?.[photoProp]) : null,
+      whatsapp: whatsappProp ? readTextLikeValue(page.properties?.[whatsappProp]) : null,
+      pending: pagePendencies[i],
+    }))
+    .filter((c) => c.pending.length > 0)
+    .sort((a, b) => b.pending.length - a.pending.length);
+
   return {
     totalCandidates: total,
     overall: {
@@ -370,6 +448,7 @@ export function buildStats(pages, schema, env) {
       stages: stages.filter((st) => !st.excludeFromOverall && st.propertyFound).length,
     },
     stages,
+    candidatesPending,
   };
 }
 
@@ -432,4 +511,4 @@ export function describeError(error) {
   return { status, message: String(error?.message || error), hint };
 }
 
-export { NOTION_VERSION, STAGES, norm, matchProperty, readValue };
+export { NOTION_VERSION, STAGES, CANDIDATE_FIELDS, norm, matchProperty, readValue };

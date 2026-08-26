@@ -232,6 +232,39 @@
     font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums;
   }
 
+  /* --------------------------------------------------------------- pendência */
+  .pending-list { display: flex; flex-direction: column; gap: 10px; }
+  .pending-empty {
+    font-size: 13.5px; color: var(--ink-2); background: var(--surface-1);
+    border: 1px solid var(--border); border-radius: var(--radius);
+    box-shadow: var(--shadow); padding: 16px 18px; margin: 0;
+  }
+  .prow {
+    background: var(--surface-1); border: 1px solid var(--border);
+    border-radius: var(--radius); box-shadow: var(--shadow);
+    padding: 13px 16px; display: flex; align-items: flex-start; gap: 13px;
+  }
+  .prow-avatar {
+    width: 42px; height: 42px; border-radius: 50%; flex: none;
+    object-fit: cover; background: var(--track); color: var(--ink-2);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; font-weight: 640;
+  }
+  .prow-body { min-width: 0; flex: 1; }
+  .prow-name { font-size: 14.5px; font-weight: 620; margin: 0 0 2px; letter-spacing: -0.01em; }
+  .prow-wpp {
+    font-size: 12.5px; color: var(--ink-2); text-decoration: none;
+    display: inline-flex; align-items: center; gap: 4px;
+  }
+  .prow-wpp:hover { color: var(--accent); text-decoration: underline; }
+  .prow-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .tag {
+    display: inline-flex; align-items: center; gap: 5px; font-size: 12px;
+    color: var(--ink-2); background: var(--track); border-radius: 999px; padding: 4px 9px 4px 7px;
+  }
+  .tag .sw { width: 8px; height: 8px; border-radius: 2px; flex: none; }
+  .tag .ic { width: 11px; height: 11px; flex: none; color: var(--ink-2); }
+
   /* --------------------------------------------------------------- estados */
   #app.loading { opacity: 0.45; }
   #app { transition: opacity .2s ease; }
@@ -300,10 +333,13 @@
 
     <h2 class="section">Comparação entre etapas</h2>
     <div class="chart" id="chart"></div>
+
+    <h2 class="section">Candidatos com pendência</h2>
+    <div class="pending-list" id="pending"></div>
   </main>
 
   <footer class="foot">
-    <span id="foot-left">Os dados vêm da base do Notion. Nenhum dado pessoal de candidato sai do servidor.</span>
+    <span id="foot-left">Os dados vêm da base do Notion. Nome, foto e WhatsApp só aparecem para quem está com pendência.</span>
     <span id="foot-right"></span>
   </footer>
 </div>
@@ -334,6 +370,7 @@
     heroStats: document.getElementById("hero-stats"),
     cards: document.getElementById("cards"),
     chart: document.getElementById("chart"),
+    pending: document.getElementById("pending"),
     footRight: document.getElementById("foot-right"),
     tip: document.getElementById("tip")
   };
@@ -542,6 +579,67 @@
     });
   }
 
+  function initials(name) {
+    var parts = String(name || "").trim().split(/\s+/).filter(Boolean);
+    if (!parts.length) return "?";
+    var first = parts[0].charAt(0);
+    var last = parts.length > 1 ? parts[parts.length - 1].charAt(0) : "";
+    return (first + last).toUpperCase();
+  }
+
+  // wa.me só aceita dígitos (com DDI); o texto mostrado continua o valor que
+  // está no Notion, então quem confere sabe se falta o 55 ou o 9.
+  function whatsappHref(raw) {
+    var digits = String(raw || "").replace(/\D/g, "");
+    return digits ? "https://wa.me/" + digits : null;
+  }
+
+  // Lista de quem ainda tem alguma etapa não fechada, ordenada pela API com
+  // quem tem mais pendência primeiro. Nome, foto e WhatsApp só existem aqui.
+  function renderPending(data) {
+    var list = data.candidatesPending || [];
+
+    if (!list.length) {
+      els.pending.innerHTML =
+        '<p class="pending-empty">Ninguém com pendência agora — todo mundo em dia nas etapas que contam.</p>';
+      return;
+    }
+
+    els.pending.innerHTML = list.map(function (candidate) {
+      var avatar = candidate.photoUrl
+        ? '<img class="prow-avatar" data-name="' + esc(candidate.name || "") +
+          '" src="' + esc(candidate.photoUrl) + '" alt="" />'
+        : '<div class="prow-avatar">' + esc(initials(candidate.name)) + "</div>";
+
+      var wppHref = whatsappHref(candidate.whatsapp);
+      var wpp = !candidate.whatsapp ? "" :
+        wppHref
+          ? '<a class="prow-wpp" href="' + esc(wppHref) + '" target="_blank" rel="noopener">' + esc(candidate.whatsapp) + "</a>"
+          : '<span class="prow-wpp">' + esc(candidate.whatsapp) + "</span>";
+
+      var tags = candidate.pending.map(function (p) {
+        var kind = p.status === "partial" ? "partial" : "pending";
+        return '<span class="tag"><span class="sw" style="background:var(--st-' + kind + ')"></span>' +
+          (ICONS[kind] || "") + esc(p.stageLabel) + "</span>";
+      }).join("");
+
+      return '<div class="prow">' + avatar +
+        '<div class="prow-body"><p class="prow-name">' + esc(candidate.name || "Sem nome") + "</p>" +
+        wpp + '<div class="prow-tags">' + tags + "</div></div></div>";
+    }).join("");
+
+    // A URL de foto do Notion expira; se a imagem não carregar mais, cai para
+    // o avatar de iniciais em vez de deixar o ícone quebrado na tela.
+    els.pending.querySelectorAll("img.prow-avatar").forEach(function (img) {
+      img.addEventListener("error", function () {
+        var div = document.createElement("div");
+        div.className = "prow-avatar";
+        div.textContent = initials(img.getAttribute("data-name"));
+        img.replaceWith(div);
+      });
+    });
+  }
+
   function renderHero(data) {
     els.hero.innerHTML = (data.overall.pct === null ? "—" : Math.round(data.overall.pct * 100)) + "<span>%</span>";
     els.heroMeter.style.width = (data.overall.pct ? data.overall.pct * 100 : 0) + "%";
@@ -625,6 +723,7 @@
         renderHero(data);
         renderCards(data);
         renderChart(data);
+        renderPending(data);
         renderFreshness();
       })
       .catch(function (error) { showBanner(String(error && error.message ? error.message : error)); })

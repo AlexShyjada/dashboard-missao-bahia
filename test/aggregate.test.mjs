@@ -7,6 +7,7 @@ const opts = (names) => ({ type: "status", status: { options: names.map((name) =
 // e a procuração com o degrau extra de assinatura.
 const schema = {
   "Nome": { type: "title", title: {} },
+  "WhatsApp": { type: "phone_number", phone_number: {} },
   "Já ligou?": opts(["Não", "Sim"]),
   "Aceitou Fundão?": opts(["Sim", "Não"]),
   "Já fez a procuração Advogado?": opts(["Pendente", "Feito", "Assinado"]),
@@ -22,6 +23,18 @@ const page = (v) => ({
     [k, { type: "status", status: val === null ? null : { name: val } }])),
 });
 
+// Anexa nome (title) e WhatsApp (phone_number) a uma página já criada com
+// page(), para testar a seção "candidatos com pendência" sem misturar tipos
+// diferentes de propriedade no helper acima.
+const withIdentity = (pg, { name, whatsapp }) => ({
+  ...pg,
+  properties: {
+    ...pg.properties,
+    "Nome": { type: "title", title: [{ plain_text: name }] },
+    "WhatsApp": { type: "phone_number", phone_number: whatsapp },
+  },
+});
+
 const pages = [
   page({ "Já ligou?": "Sim", "Aceitou Fundão?": "Sim", "Já fez a procuração Advogado?": "Assinado",
          "Já foi feito o Material?": "Feito", "Confecionado na gráfica?": "Feito",
@@ -35,7 +48,10 @@ const pages = [
   page({ "Já ligou?": null, "Aceitou Fundão?": "Não", "Já fez a procuração Advogado?": "Pendente",
          "Já foi feito o Material?": "Pendente", "Confecionado na gráfica?": "Pendente",
          "Já foi Pago?": "Pendente", "Certificado de doação (Homens)": "Pendente" }),
-];
+].map((pg, i) => withIdentity(pg, {
+  name: ["Candidata em dia", "Candidato com pendência", "Outro com pendência", "Sem nenhum toque"][i],
+  whatsapp: "+55 71 9" + i + "999-0000",
+}));
 
 const env = {
   DONE_VALUES: "feito,concluido,pago,ok,sim",
@@ -98,7 +114,34 @@ assert.equal(by.certificado.applicable, 2, "'Não precisa' sai do denominador");
 assert.equal(readValue({ type: "checkbox", checkbox: true }), "Feito");
 assert.equal(readValue({ type: "files", files: [{ name: "rac.pdf" }] }), "Feito");
 
-console.log("agregação: assinatura, ordem das barras e Fundão fora da conta — ok");
+/* --------------------------------------------------- candidatos com pendência */
+
+// Quem fechou tudo que se aplica não entra na lista — nem por engano.
+assert.ok(
+  !stats.candidatesPending.some((c) => c.name === "Candidata em dia"),
+  "candidato sem pendência não deveria aparecer na lista"
+);
+
+// "Não" em Já ligou é Sim/Não (etapa 1), e as três primeiras páginas ligaram;
+// a quarta (índice 3) tem "Já ligou?" vazio, então soma mais uma pendência.
+assert.equal(stats.candidatesPending.length, 3, "só quem tem pendência aparece");
+
+const worst = stats.candidatesPending[0];
+assert.equal(worst.name, "Sem nenhum toque", "mais pendências primeiro");
+assert.equal(worst.pending.length, 6);
+assert.ok(worst.pending.some((p) => p.stageKey === "ligou" && p.status === "pending"),
+  "célula vazia também é pendência");
+assert.ok(!worst.pending.some((p) => p.stageKey === "fundao"),
+  "Fundão nunca vira pendência, mesmo com valor 'Não'");
+
+const middle = stats.candidatesPending.find((c) => c.name === "Candidato com pendência");
+assert.equal(middle.pending.length, 4);
+assert.ok(middle.pending.some((p) => p.stageKey === "procuracao" && p.status === "partial"),
+  "documento feito mas não assinado é pendência 'partial', não 'pending'");
+assert.equal(middle.whatsapp, "+55 71 91999-0000");
+assert.equal(middle.photoUrl, null, "sem coluna Foto na base de teste, fica null sem quebrar");
+
+console.log("agregação: assinatura, ordem das barras, Fundão fora da conta e pendências por candidato — ok");
 console.log(stats.stages.map((s) =>
   `  ${s.label}: ${s.done}/${s.applicable}` +
   (s.partial ? ` (+${s.partial} aguardando assinatura)` : "") +

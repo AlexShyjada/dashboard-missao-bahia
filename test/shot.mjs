@@ -6,6 +6,8 @@ const opts = (n) => ({ type: "status", status: { options: n.map((name) => ({ nam
 
 // Contagens reais lidas da base em 26/08: 21 candidatos.
 const schema = {
+  "Nome": { type: "title", title: {} },
+  "WhatsApp": { type: "phone_number", phone_number: {} },
   "Já ligou?": opts(["Não", "Sim"]),
   "Aceitou Fundão?": opts(["Sim", "Não"]),
   "Já fez a procuração Advogado?": opts(["Pendente", "Feito", "Assinado"]),
@@ -31,12 +33,26 @@ const cols = {
   "Certificado de doação (Homens)": dist(0, { "Feito": 1, "Pendente": 13, "Não precisa": 7 }),
 };
 
+// Um nome propositalmente comprido, para o checador de truncamento pegar
+// estouro de texto no card de pendência também.
+const NAMES = [
+  "Maria Aparecida de Souza Nascimento Bittencourt Filha", "João Pedro Alves", "Ana Clara Ribeiro",
+  "Carlos Eduardo Santos", "Fernanda Lima", "Rafael Costa", "Juliana Pereira", "Marcos Vinícius",
+  "Beatriz Almeida", "Lucas Gabriel", "Camila Rocha", "Thiago Barbosa", "Larissa Martins",
+  "Gustavo Henrique", "Patrícia Nunes", "Bruno Cardoso", "Vanessa Teixeira", "Diego Fernandes",
+  "Renata Gomes", "André Luiz", "Sabrina Dias",
+];
+
 const rows = Array.from({ length: 21 }, (_, i) => ({
   object: "page", archived: false,
-  properties: Object.fromEntries(Object.keys(cols).map((k) => {
-    const v = cols[k][i];
-    return [k, { type: "status", status: !v || v === "__vazio" ? null : { name: v } }];
-  })),
+  properties: {
+    "Nome": { type: "title", title: [{ plain_text: NAMES[i] }] },
+    "WhatsApp": { type: "phone_number", phone_number: "+55 71 9" + (1000 + i) + "-" + (2000 + i) },
+    ...Object.fromEntries(Object.keys(cols).map((k) => {
+      const v = cols[k][i];
+      return [k, { type: "status", status: !v || v === "__vazio" ? null : { name: v } }];
+    })),
+  },
 }));
 
 const payload = {

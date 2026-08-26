@@ -22,7 +22,10 @@ qualquer mudança futura:
 1. **Link público, sem login.** A equipe não tem conta em nada. Isso descartou
    o artifact do claude.ai (que trava no dono) e obrigou hospedagem própria.
 2. **Atualiza a cada carregamento.** Não pode ser snapshot regenerado à mão.
-3. **Nenhum dado pessoal na resposta da API** (ver "Privacidade").
+3. **Dado pessoal só na seção "Candidatos com pendência"** (ver "Privacidade").
+   Os agregados por etapa continuam só contagem; nome, foto e WhatsApp saem
+   *apenas* de quem tem pendência, decisão explícita do usuário em
+   26/08/2026, sabendo que o link é público e sem login.
 4. **Sem recortes por cidade ou cargo.** Só a progressão das etapas.
 5. Os rótulos na tela imitam a notação que já existe nas colunas do Notion.
 
@@ -162,8 +165,8 @@ Orçamento medido: aba esquecida 24h/dia ≈ 14 mil/mês; equipe usando 8h/dia
 útil ≈ 40 mil/mês. `test/polling.test.mjs` mede isso com relógio controlado,
 para a conta não virar suposição.
 
-**Antes de mexer em `ACTIVE_MS`, `IDLE_MS` ou `EDGE_TTL_SECONDS`, refaça a
-conta.**
+**Antes de mexer em `ACTIVE_MS`, `IDLE_MS`, `IDLE_AFTER_MS` (todos em
+`public/index.html`) ou `EDGE_TTL_SECONDS`, refaça a conta.**
 
 ### Não é tempo real, é pull
 
@@ -180,13 +183,32 @@ Limite do Notion: média de 3 req/s por integração. Cada leitura completa gast
 
 ## Privacidade
 
-`/api/stats` devolve apenas contagens agregadas. Nome, WhatsApp, número de
-campanha, cidade, gênero e os PDFs nunca saem do servidor. Isso é deliberado:
-o link é público, então se alguém repassar a URL o que vaza é "8 de 21 já
-ligaram", nunca a lista de candidatos.
+Regra geral: `/api/stats` devolve contagens agregadas. Número de campanha,
+cidade, gênero e os PDFs nunca saem do servidor.
 
-**Ao adicionar qualquer campo à resposta da API, verificar se ele é
-agregado.**
+**Exceção deliberada, decidida com o usuário em 26/08/2026:** o campo
+`candidatesPending` traz nome, foto e WhatsApp — mas só de quem tem alguma
+etapa não fechada (`pending`/`empty`/`partial` em pelo menos uma etapa que
+conta; ver `buildStats()` em `src/notion.js`). Quem terminou tudo que se
+aplica não aparece nesse campo, nem por engano. O usuário pediu essa exposição
+sabendo que o link é público e sem login — foi perguntado explicitamente se
+queria proteger a seção com login antes (Netlify Identity / Cloudflare
+Access) e escolheu não proteger. **Não reverter essa decisão sem confirmar de
+novo com o usuário — é inversão de uma escolha consciente, não correção de
+bug.**
+
+Colunas usadas: `CANDIDATE_FIELDS` em `src/notion.js` (`Nome`, `Foto`,
+`WhatsApp`), casadas pelo mesmo `matchProperty()` tolerante a acento/typo que
+as etapas usam. Se a base não tiver uma dessas colunas, o campo correspondente
+vem `null` sem quebrar nada (`readTitleValue`/`readFileUrlValue`/
+`readTextLikeValue`). A URL de foto que o Notion devolve para colunas
+"Files & media" hospedadas por ele expira depois de um tempo; como
+`buildStats()` roda a cada leitura, a URL é sempre a mais recente — a
+página troca por um avatar de iniciais se a imagem já tiver expirado
+(`img.onerror` em `renderPending()`).
+
+**Ao adicionar qualquer *outro* campo à resposta da API, verificar se ele é
+agregado — a exceção acima é a única aprovada, não um precedente geral.**
 
 O `NOTION_TOKEN` vive só na variável de ambiente da Netlify. Não está no
 repositório; `.gitignore` cobre `.env` e `.dev.vars`. A integração do Notion
@@ -212,7 +234,7 @@ Segue a metodologia da skill `dataviz`. O que não é óbvio:
 - Tema claro e escuro, ambos escolhidos passo a passo, não invertidos.
 - Sem dependência externa: uma página, um arquivo, nada de CDN.
 
-Dois blocos de visualização, ambos em `public/index.html`:
+Três blocos de visualização, todos em `public/index.html`:
 
 - **Cards por etapa** (`renderCards` / `.card`): barra empilhada por status
   (`done`/`partial`/`pending`/`na`/`empty`), cor categórica de status — o
@@ -222,6 +244,14 @@ Dois blocos de visualização, ambos em `public/index.html`:
   uma única medida (% concluído) comparada entre categorias — não uma
   identidade a distinguir. Tem grade e eixo em 0/25/50/75/100% e tooltip por
   barra (reaproveita `showTip`/`hideTip` dos cards).
+- **Candidatos com pendência** (`renderPending` / `.pending-list`): lista de
+  quem tem alguma etapa não fechada, ordenada pela API (mais pendências
+  primeiro). Único bloco com dado pessoal — ver "Privacidade". Cada linha
+  (`.prow`) é avatar (foto ou iniciais em `.prow-avatar`), nome, link
+  `wa.me/<dígitos>` do WhatsApp quando dá para extrair dígito, e uma etiqueta
+  (`.tag`) por etapa pendente reaproveitando `ICONS`/cores de `--st-partial`
+  e `--st-pending` das barras — mesma linguagem visual, não uma paleta nova.
+  Lista vazia mostra uma mensagem positiva (`.pending-empty`) em vez de nada.
 
 A pedido do usuário (26/08/2026), removidos da página: o card de "Aceitou
 Fundão" (etapa `excludeFromOverall` continua nos dados, só não renderiza),
@@ -238,7 +268,9 @@ npm test
 - `aggregate.test.mjs` — o degrau de assinatura, a ordem fixa das barras, o
   Fundão fora da conta, "Não precisa" fora do denominador, células vazias, o
   casamento do nome da coluna com o typo corrigido, leitura de checkbox /
-  files / select.
+  files / select, e a lista de pendência por candidato (quem some da lista ao
+  terminar tudo, ordenação por quantidade de pendência, `partial` vs.
+  `pending`, e que o Fundão nunca vira pendência mesmo com "Não").
 - `handlers.test.mjs` — os dois adaptadores contra uma API do Notion
   simulada: paginação de 150 candidatos, cabeçalhos de cache, `?fresh=1`, e os
   erros prováveis (sem token, base sem acesso).
