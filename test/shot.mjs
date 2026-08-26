@@ -63,12 +63,11 @@ for (const [scheme, width, name] of [["light", 1280, "light"], ["dark", 1280, "d
     r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(payload) }));
   await page.goto(file);
   await page.waitForSelector(".card");
-  await page.locator("details.table-view > summary").click();
   await page.waitForTimeout(700);
   await page.screenshot({ path: `/tmp/${name}.png`, fullPage: true });
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1);
   const clipped = await page.evaluate(() =>
-    [...document.querySelectorAll(".card-title,.fname,.stat b,.lg,.card-note")]
+    [...document.querySelectorAll(".card-title,.chart-label,.stat b,.lg,.card-note")]
       .filter((el) => el.scrollWidth > el.clientWidth + 1).map((el) => el.textContent.trim().slice(0, 40)));
   console.log(name, "| erros:", errors.length ? errors : "nenhum", "| overflow-x:", overflow, "| truncados:", clipped.length ? clipped : "nenhum");
   await ctx.close();

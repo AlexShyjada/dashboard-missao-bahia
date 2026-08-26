@@ -22,10 +22,11 @@
     --st-done:    #0ca30c;
     --st-done-2:  #0a7f0a;
     --st-done-3:  #085f08;
-    /* Documento pronto, ainda sem assinatura: verde clareado, para a barra
-       crescer em direção ao verde cheio da esquerda. */
-    --st-partial: #93d893;
-    --st-part-2:  #b9e6b9;
+    /* Documento pronto, ainda sem assinatura: azul, para não ler como "quase
+       concluído" (o que o verde clareado sugeria) nem colidir com o amarelo
+       de pendente. */
+    --st-partial: #2a78d6;
+    --st-part-2:  #1f5aa8;
     --st-pending: #fab219;
     --st-pend-2:  #d99400;
     --st-pend-3:  #b87a00;
@@ -53,8 +54,8 @@
       --st-done:    #0ca30c;
       --st-done-2:  #14c014;
       --st-done-3:  #5cd45c;
-      --st-partial: #93d893;
-      --st-part-2:  #b9e6b9;
+      --st-partial: #3987e5;
+      --st-part-2:  #6fb0f0;
       --st-pending: #fab219;
       --st-pend-2:  #d99400;
       --st-pend-3:  #f7cd6b;
@@ -70,7 +71,7 @@
     --muted: #898781; --grid: #2c2c2a; --axis: #383835;
     --border: rgba(255,255,255,0.10); --accent: #3987e5; --track: #262624;
     --st-done: #0ca30c; --st-done-2: #14c014; --st-done-3: #5cd45c;
-    --st-partial: #93d893; --st-part-2: #b9e6b9;
+    --st-partial: #3987e5; --st-part-2: #6fb0f0;
     --st-pending: #fab219; --st-pend-2: #d99400; --st-pend-3: #f7cd6b;
     --st-na: #898781; --st-na-2: #a5a39c; --st-empty: #4a4a46;
     --shadow: 0 1px 2px rgba(0,0,0,0.4), 0 8px 24px rgba(0,0,0,0.28);
@@ -176,12 +177,6 @@
   .card-value { font-size: 19px; font-weight: 640; letter-spacing: -0.01em;
                 flex: none; white-space: nowrap; }
   .card-value small { font-size: 12px; font-weight: 500; color: var(--muted); }
-  .chip {
-    font-size: 10.5px; font-weight: 600; letter-spacing: 0.03em;
-    text-transform: uppercase; color: var(--muted);
-    border: 1px solid var(--border); border-radius: 999px;
-    padding: 2px 7px; white-space: nowrap; flex: none;
-  }
   .card-note {
     font-size: 12px; color: var(--ink-2); margin: 10px 0 0;
     display: flex; align-items: center; gap: 6px;
@@ -212,38 +207,30 @@
     border-radius: 8px; padding: 10px 12px; margin-top: 4px;
   }
 
-  /* ----------------------------------------------------------------- funil */
-  .funnel { background: var(--surface-1); border: 1px solid var(--border);
-            border-radius: var(--radius); box-shadow: var(--shadow); padding: 20px 24px 18px; }
-  .frow { display: grid; grid-template-columns: 1fr; gap: 5px; padding: 8px 0; }
-  .frow + .frow { border-top: 1px solid var(--grid); }
-  .fhead { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; font-size: 13px; }
-  .fname { color: var(--ink); font-weight: 560; min-width: 0;
-           overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .fval { color: var(--ink-2); font-variant-numeric: tabular-nums; flex: none; }
-  .fval b { color: var(--ink); font-weight: 640; }
-  .ftrack { height: 8px; border-radius: 4px; background: var(--track); overflow: hidden; }
-  .ffill { height: 100%; border-radius: 0 4px 4px 0; background: var(--accent);
-           transition: width .45s cubic-bezier(.4,0,.2,1); }
-
-  /* ---------------------------------------------------------------- tabela */
-  details.table-view { margin-top: 22px; }
-  details.table-view > summary {
-    cursor: pointer; font-size: 13px; color: var(--ink-2);
-    padding: 8px 0; list-style: none; display: inline-flex; align-items: center; gap: 7px;
+  /* ---------------------------------------------------------------- gráfico */
+  .chart { background: var(--surface-1); border: 1px solid var(--border);
+           border-radius: var(--radius); box-shadow: var(--shadow); padding: 20px 24px 16px; }
+  .chart-row { padding: 9px 0; }
+  .chart-row + .chart-row { border-top: 1px solid var(--grid); }
+  .chart-head { display: flex; justify-content: space-between; align-items: baseline;
+                gap: 12px; font-size: 13px; margin-bottom: 6px; }
+  .chart-label { color: var(--ink); font-weight: 560; min-width: 0;
+                 overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .chart-value { color: var(--ink-2); font-variant-numeric: tabular-nums; flex: none; white-space: nowrap; }
+  .chart-value b { color: var(--ink); font-weight: 640; }
+  .chart-track { position: relative; height: 14px; }
+  .chart-grid { position: absolute; inset: 0; display: flex; justify-content: space-between; pointer-events: none; }
+  .chart-grid span { width: 1px; height: 100%; background: var(--grid); }
+  .chart-bar {
+    position: relative; height: 100%; min-width: 2px; border-radius: 0 4px 4px 0;
+    background: var(--accent); cursor: default;
+    transition: width .45s cubic-bezier(.4,0,.2,1);
   }
-  details.table-view > summary::-webkit-details-marker { display: none; }
-  details.table-view > summary::before { content: "▸"; color: var(--muted); font-size: 11px; }
-  details.table-view[open] > summary::before { content: "▾"; }
-  .table-scroll { overflow-x: auto; border: 1px solid var(--border);
-                  border-radius: var(--radius); background: var(--surface-1); }
-  table { border-collapse: collapse; width: 100%; font-size: 13px; }
-  th, td { padding: 10px 14px; text-align: right; white-space: nowrap;
-           border-bottom: 1px solid var(--grid); font-variant-numeric: tabular-nums; }
-  th:first-child, td:first-child { text-align: left; font-variant-numeric: normal; }
-  thead th { font-weight: 600; color: var(--ink-2); font-size: 12px;
-             text-transform: uppercase; letter-spacing: 0.05em; }
-  tbody tr:last-child td { border-bottom: none; }
+  .chart-bar:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .chart-axis {
+    display: flex; justify-content: space-between; margin-top: 10px;
+    font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums;
+  }
 
   /* --------------------------------------------------------------- estados */
   #app.loading { opacity: 0.45; }
@@ -311,13 +298,8 @@
     <h2 class="section">Progressão por etapa</h2>
     <div class="grid" id="cards"></div>
 
-    <h2 class="section">Funil</h2>
-    <div class="funnel" id="funnel"></div>
-
-    <details class="table-view">
-      <summary>Ver tabela de valores</summary>
-      <div class="table-scroll"><table id="table"></table></div>
-    </details>
+    <h2 class="section">Comparação entre etapas</h2>
+    <div class="chart" id="chart"></div>
   </main>
 
   <footer class="foot">
@@ -351,8 +333,7 @@
     heroMeter: document.getElementById("hero-meter"),
     heroStats: document.getElementById("hero-stats"),
     cards: document.getElementById("cards"),
-    funnel: document.getElementById("funnel"),
-    table: document.getElementById("table"),
+    chart: document.getElementById("chart"),
     footRight: document.getElementById("foot-right"),
     tip: document.getElementById("tip")
   };
@@ -437,13 +418,11 @@
 
   /* ------------------------------------------------------------ renderers */
 
-  // Etapas que contam vêm numeradas, na ordem do fluxo. As que ficam fora da
-  // conta vão para o fim, sem número, com o selo "fora do cálculo".
+  // Só as etapas que contam para o percentual geral aparecem na tela, numeradas
+  // na ordem do fluxo. Marcadores de entrada (ex.: Aceitou Fundão) ficam de fora.
   function orderedStages(stages) {
-    var counted = stages.filter(function (s) { return !s.excludeFromOverall; });
-    var aside = stages.filter(function (s) { return s.excludeFromOverall; });
-    return counted.map(function (s, i) { return { stage: s, step: String(i + 1) }; })
-      .concat(aside.map(function (s) { return { stage: s, step: null }; }));
+    return stages.filter(function (s) { return !s.excludeFromOverall; })
+      .map(function (s, i) { return { stage: s, step: String(i + 1) }; });
   }
 
   function renderCards(data) {
@@ -458,11 +437,11 @@
       if (!stage.propertyFound) {
         card.innerHTML =
           '<div class="card-head"><div class="card-name">' +
-          '<span class="step-no">' + (step || "–") + "</span>" +
+          '<span class="step-no">' + step + "</span>" +
           '<h3 class="card-title">' + esc(stage.label) + "</h3></div></div>" +
           '<p class="card-prop">&nbsp;</p>' +
           '<div class="missing">Coluna <b>' + esc(stage.property) + "</b> não encontrada na base. " +
-          "Se ela foi renomeada no Notion, ajuste <code>STAGES</code> em <code>src/worker.js</code>.</div>";
+          "Se ela foi renomeada no Notion, ajuste <code>STAGES</code> em <code>src/notion.js</code>.</div>";
         els.cards.appendChild(card);
         return;
       }
@@ -471,9 +450,8 @@
       var head =
         '<div class="card-head">' +
           '<div class="card-name">' +
-            '<span class="step-no">' + (step || "–") + "</span>" +
+            '<span class="step-no">' + step + "</span>" +
             '<h3 class="card-title">' + esc(stage.label) + "</h3>" +
-            (step ? "" : '<span class="chip" title="Não entra no percentual geral nem no funil">fora do cálculo</span>') +
           "</div>" +
           '<div class="card-value">' + pct(stage.pct) +
             " <small>" + stage.done + "/" + stage.applicable + "</small></div>" +
@@ -529,49 +507,39 @@
     });
   }
 
-  function renderFunnel(data) {
-    // O funil mostra só a sequência que conta; o Fundão fica de fora.
-    var counted = data.stages.filter(function (s) { return !s.excludeFromOverall; });
+  // Gráfico de barras horizontais: uma barra por etapa que conta, mesma cor
+  // (é uma única medida — % concluído — comparada entre categorias), com
+  // grade e eixo em 0/25/50/75/100% para leitura de magnitude, não um funil.
+  function renderChart(data) {
+    var rows = orderedStages(data.stages);
 
-    els.funnel.innerHTML = counted.map(function (stage, index) {
+    els.chart.innerHTML = rows.map(function (entry) {
+      var stage = entry.stage;
       var width = stage.pct === null || stage.pct === undefined ? 0 : stage.pct * 100;
       var value = stage.propertyFound
-        ? "<b>" + stage.done + "</b> / " + stage.applicable + " · " + pct(stage.pct)
+        ? "<b>" + pct(stage.pct) + "</b> (" + stage.done + "/" + stage.applicable + ")"
         : "sem dados";
-      return '<div class="frow">' +
-        '<div class="fhead"><span class="fname">' + (index + 1) + ". " + esc(stage.label) + "</span>" +
-        '<span class="fval">' + value + "</span></div>" +
-        '<div class="ftrack"><div class="ffill" style="width:' + width + '%"></div></div>' +
-        "</div>";
-    }).join("");
-  }
+      return '<div class="chart-row">' +
+        '<div class="chart-head"><span class="chart-label">' + entry.step + ". " + esc(stage.label) + "</span>" +
+        '<span class="chart-value">' + value + "</span></div>" +
+        '<div class="chart-track">' +
+          '<div class="chart-grid"><span></span><span></span><span></span><span></span><span></span></div>' +
+          '<div class="chart-bar" data-stage="' + entry.step + '" style="width:' + width + '%"' +
+            (stage.propertyFound ? ' tabindex="0"' : "") + "></div>" +
+        "</div></div>";
+    }).join("") +
+    '<div class="chart-axis"><span>0%</span><span>25%</span><span>50%</span><span>75%</span><span>100%</span></div>';
 
-  function renderTable(data) {
-    var labels = [];
-    orderedStages(data.stages).map(function (e) { return e.stage; }).forEach(function (stage) {
-      stage.breakdown.forEach(function (bucket) {
-        if (bucket.count > 0 && labels.indexOf(bucket.label) === -1) labels.push(bucket.label);
-      });
+    rows.forEach(function (entry) {
+      if (!entry.stage.propertyFound) return;
+      var bar = els.chart.querySelector('.chart-bar[data-stage="' + entry.step + '"]');
+      if (!bar) return;
+      var bucket = { color: "var(--accent)", label: entry.stage.label, count: entry.stage.done, pct: entry.stage.pct };
+      bar.addEventListener("mouseenter", function (e) { showTip(e, bucket, entry.stage.applicable); });
+      bar.addEventListener("focus", function (e) { showTip(e, bucket, entry.stage.applicable); });
+      bar.addEventListener("mouseleave", hideTip);
+      bar.addEventListener("blur", hideTip);
     });
-
-    var head = "<thead><tr><th>Etapa</th><th>Coluna no Notion</th>" +
-      labels.map(function (l) { return "<th>" + esc(l) + "</th>"; }).join("") +
-      "<th>Concluído</th></tr></thead>";
-
-    var body = "<tbody>" + orderedStages(data.stages).map(function (entry) {
-      var stage = entry.stage;
-      var cells = labels.map(function (label) {
-        var found = null;
-        stage.breakdown.forEach(function (b) { if (b.label === label) found = b; });
-        return "<td>" + (found && found.count ? found.count : "—") + "</td>";
-      }).join("");
-      return "<tr><td>" + (entry.step ? entry.step + ". " : "") + esc(stage.label) +
-        (entry.step ? "" : " (fora do cálculo)") + "</td>" +
-        "<td>" + esc(stage.propertyName || stage.property) + "</td>" + cells +
-        "<td>" + (stage.propertyFound ? stage.done + "/" + stage.applicable + " (" + pct(stage.pct) + ")" : "—") + "</td></tr>";
-    }).join("") + "</tbody>";
-
-    els.table.innerHTML = head + body;
   }
 
   function renderHero(data) {
@@ -656,8 +624,7 @@
 
         renderHero(data);
         renderCards(data);
-        renderFunnel(data);
-        renderTable(data);
+        renderChart(data);
         renderFreshness();
       })
       .catch(function (error) { showBanner(String(error && error.message ? error.message : error)); })

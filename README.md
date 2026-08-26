@@ -4,8 +4,8 @@ Página pública que lê a base do Notion e mostra a progressão das seis etapas
 operação: **Já ligou**, **Procuração advogado**, **Material de campanha**,
 **Confeccionado na gráfica**, **Pagamento** e **Certificado de doação**.
 
-**Aceitou Fundão** aparece como card, marcado *fora do cálculo*: é marcador de
-entrada, não tarefa de execução, então não entra no percentual geral nem no funil.
+**Aceitou Fundão** é marcador de entrada, não tarefa de execução: fica fora do
+percentual geral e não aparece na tela.
 
 Hospedado na Netlify: a pasta `public/` é servida como está, e uma Netlify
 Function responde em `/api/stats`. Toda conversa com o Notion acontece no
@@ -155,9 +155,9 @@ Decisões que sustentam essa tabela:
 
 Numa coluna de documento o fluxo tem três degraus: **Pendente → Feito →
 Assinado**. "Feito" quer dizer documento confeccionado mas ainda sem assinatura,
-então **não conta como concluído**: entra como estado intermediário, com verde
-claro na barra e uma linha no card dizendo quantos estão prontos esperando
-assinatura. Só "Assinado" fecha a etapa e entra no percentual.
+então **não conta como concluído**: entra como estado intermediário, em azul na
+barra e uma linha no card dizendo quantos estão prontos esperando assinatura.
+Só "Assinado" fecha a etapa e entra no percentual.
 
 Isso é detectado **por coluna, automaticamente**: se a coluna oferece algum valor
 de `SIGNED_VALUES`, ela é tratada como documento. Se não oferece — "Já foi Pago?",
@@ -165,10 +165,9 @@ por exemplo — "Feito" continua sendo o fim da linha. Não há lista de colunas
 codificada em lugar nenhum: crie a opção "Assinado" numa coluna do Notion e o
 dashboard passa a tratá-la assim sozinho, sem redeploy.
 
-> **Pendência aberta:** o certificado de doação precisa de assinatura, mas a
-> coluna `Certificado de doação (Homens)` ainda não tem a opção `Assinado`
-> criada no Notion. Enquanto não tiver, o "Feito" daquela coluna segue contando
-> como concluído. Criar a opção resolve.
+A coluna `Certificado de doação (Homens)` já tem a opção `Assinado` criada no
+Notion, então segue essa mesma regra: "Feito" ali é intermediário, só
+"Assinado" fecha a etapa.
 
 ### Mudar o que conta como concluído
 
