@@ -100,11 +100,12 @@ Revisada com o usuário em 26/08/2026, coluna por coluna:
 | # | Coluna | Não iniciado | Intermediário | Concluído | Fora da conta |
 |---|---|---|---|---|---|
 | 1 | `Já ligou?` | Não | — | **Sim** | — |
-| 2 | `Já fez a procuração Advogado?` | Pendente | Feito | **Assinado** | — |
-| 3 | `Já foi feito o Material?` | Pendente | — | **Feito** | — |
-| 4 | `Confecionado na gráfica?` | Pendente | — | **Feito** | — |
-| 5 | `Já foi Pago?` | Pendente | — | **Feito** | — |
-| 6 | `Certificado de doação (Homens)` | Pendente | Feito | **Assinado** | Não precisa |
+| 2 | `Já mandou o requerimento de abertura de conta?` | Não / vazio | — | **Sim** | — |
+| 3 | `Já fez a procuração Advogado?` | Pendente | Feito | **Assinado** | — |
+| 4 | `Já foi feito o Material?` | Pendente | — | **Feito** | — |
+| 5 | `Confecionado na gráfica?` | Pendente | — | **Feito** | — |
+| 6 | `Já foi Pago?` | Pendente | — | **Feito** | — |
+| 7 | `Certificado de doação (Homens)` | Pendente | Feito | **Assinado** | Não precisa |
 | — | `Aceitou Fundão?` | — | — | — | a etapa inteira |
 
 ### O degrau de assinatura
@@ -316,9 +317,9 @@ Pendências abertas, em ordem:
    sem resposta.
 2. Se o link for exposto demais, fechar com Netlify Identity ou Cloudflare
    Access.
-3. **Modal de foto (carrossel + download) e link do nome para o Notion são
-   mudança recente, ainda não commitada e sem cobertura em
-   `aggregate.test.mjs`.** `middle.photoUrl` é o único teste hoje que toca
+3. **Modal de foto (carrossel + download) e link do nome para o Notion já
+   estão commitados, mas ainda sem cobertura em `aggregate.test.mjs`.**
+   `middle.photoUrl` é o único teste hoje que toca
    nesses campos. Antes de considerar a feature pronta, cobrir `photos`
    (múltiplas fotos, ordem) e `notionUrl` no teste de agregação.
 

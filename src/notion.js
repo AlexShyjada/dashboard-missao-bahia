@@ -1,5 +1,5 @@
 /**
- * Núcleo compartilhado: fala com a API do Notion e agrega as seis etapas.
+ * Núcleo compartilhado: fala com a API do Notion e agrega as sete etapas.
  *
  * Não conhece nem Cloudflare nem Netlify. Os adaptadores em
  * netlify/functions/stats.mjs e src/worker.js só cuidam de rota e cache.
@@ -9,13 +9,23 @@ const NOTION_API = "https://api.notion.com/v1";
 const NOTION_VERSION = "2025-09-03";
 const EDGE_TTL_SECONDS = 10;
 
-/** As seis etapas pedidas, na ordem do fluxo operacional. */
+/** As sete etapas pedidas, na ordem do fluxo operacional. */
 const STAGES = [
   {
     key: "ligou",
     label: "Ligações de Rafael",
     property: "Já ligou?",
     aliases: ["Já ligou", "Ligou", "Ja ligou?"],
+  },
+  {
+    key: "abertura_conta",
+    label: "Requerimento de abertura de conta",
+    property: "Já mandou o requerimento de abertura de conta?",
+    aliases: [
+      "Já mandou o requerimento de abertura de conta",
+      "Requerimento de abertura de conta",
+      "Abertura de conta",
+    ],
   },
   {
     key: "procuracao",

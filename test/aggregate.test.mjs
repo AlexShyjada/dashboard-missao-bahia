@@ -9,6 +9,7 @@ const schema = {
   "Nome": { type: "title", title: {} },
   "WhatsApp": { type: "phone_number", phone_number: {} },
   "Já ligou?": opts(["Não", "Sim"]),
+  "Já mandou o requerimento de abertura de conta?": opts(["Não", "Sim"]),
   "Aceitou Fundão?": opts(["Sim", "Não"]),
   "Já fez a procuração Advogado?": opts(["Pendente", "Feito", "Assinado"]),
   "Já foi feito o Material?": opts(["Pendente", "Feito"]),
@@ -36,16 +37,20 @@ const withIdentity = (pg, { name, whatsapp }) => ({
 });
 
 const pages = [
-  page({ "Já ligou?": "Sim", "Aceitou Fundão?": "Sim", "Já fez a procuração Advogado?": "Assinado",
+  page({ "Já ligou?": "Sim", "Já mandou o requerimento de abertura de conta?": "Sim",
+         "Aceitou Fundão?": "Sim", "Já fez a procuração Advogado?": "Assinado",
          "Já foi feito o Material?": "Feito", "Confecionado na gráfica?": "Feito",
          "Já foi Pago?": "Feito", "Certificado de doação (Homens)": "Feito" }),
-  page({ "Já ligou?": "Sim", "Aceitou Fundão?": "Sim", "Já fez a procuração Advogado?": "Feito",
+  page({ "Já ligou?": "Sim", "Já mandou o requerimento de abertura de conta?": "Sim",
+         "Aceitou Fundão?": "Sim", "Já fez a procuração Advogado?": "Feito",
          "Já foi feito o Material?": "Pendente", "Confecionado na gráfica?": "Pendente",
          "Já foi Pago?": "Pendente", "Certificado de doação (Homens)": "Não precisa" }),
-  page({ "Já ligou?": "Sim", "Aceitou Fundão?": "Não", "Já fez a procuração Advogado?": "Feito",
+  page({ "Já ligou?": "Sim", "Já mandou o requerimento de abertura de conta?": "Não",
+         "Aceitou Fundão?": "Não", "Já fez a procuração Advogado?": "Feito",
          "Já foi feito o Material?": "Pendente", "Confecionado na gráfica?": "Pendente",
          "Já foi Pago?": "Pendente", "Certificado de doação (Homens)": "Não precisa" }),
-  page({ "Já ligou?": null, "Aceitou Fundão?": "Não", "Já fez a procuração Advogado?": "Pendente",
+  page({ "Já ligou?": null, "Já mandou o requerimento de abertura de conta?": null,
+         "Aceitou Fundão?": "Não", "Já fez a procuração Advogado?": "Pendente",
          "Já foi feito o Material?": "Pendente", "Confecionado na gráfica?": "Pendente",
          "Já foi Pago?": "Pendente", "Certificado de doação (Homens)": "Pendente" }),
 ].map((pg, i) => withIdentity(pg, {
@@ -99,10 +104,10 @@ assert.equal(by.ligou.breakdown[0].label, "Sim",
 
 assert.equal(by.fundao.excludeFromOverall, true);
 assert.equal(by.fundao.done, 2, "o card do Fundão continua mostrando o número");
-assert.equal(stats.overall.stages, 6, "seis etapas deveriam entrar na conta geral");
+assert.equal(stats.overall.stages, 7, "sete etapas deveriam entrar na conta geral");
 
-// Geral = soma das seis etapas que contam, sem o Fundão.
-const counted = ["ligou", "procuracao", "material", "grafica", "pago", "certificado"];
+// Geral = soma das sete etapas que contam, sem o Fundão.
+const counted = ["ligou", "abertura_conta", "procuracao", "material", "grafica", "pago", "certificado"];
 assert.equal(stats.overall.done, counted.reduce((s, k) => s + by[k].done, 0));
 assert.equal(stats.overall.applicable, counted.reduce((s, k) => s + by[k].applicable, 0));
 assert.ok(!counted.includes("fundao"));
@@ -128,7 +133,7 @@ assert.equal(stats.candidatesPending.length, 3, "só quem tem pendência aparece
 
 const worst = stats.candidatesPending[0];
 assert.equal(worst.name, "Sem nenhum toque", "mais pendências primeiro");
-assert.equal(worst.pending.length, 6);
+assert.equal(worst.pending.length, 7);
 assert.ok(worst.pending.some((p) => p.stageKey === "ligou" && p.status === "pending"),
   "célula vazia também é pendência");
 assert.ok(!worst.pending.some((p) => p.stageKey === "fundao"),
