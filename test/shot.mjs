@@ -1,6 +1,6 @@
 import { chromium } from "playwright";
 import fs from "node:fs";
-import { buildStats } from "../src/worker.js";
+import { buildStats } from "../src/notion.js";
 
 const statusProp = (o) => ({ type: "status", status: { options: o.map((name) => ({ name, color: null })) } });
 const schema = {

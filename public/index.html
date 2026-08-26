@@ -110,6 +110,7 @@
   }
   button.ghost:hover { background: var(--track); }
   button.ghost:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  button.ghost:disabled { opacity: 0.55; cursor: default; }
 
   /* ------------------------------------------------------------------ hero */
   .hero {
@@ -312,8 +313,11 @@
 (function () {
   "use strict";
 
-  var REFRESH_MS = 45000;
-  var STALE_MS = 150000;
+  var ACTIVE_MS = 30000;      // varredura com alguem mexendo na pagina
+  var IDLE_MS = 180000;       // varredura quando a aba fica esquecida aberta
+  var IDLE_AFTER_MS = 300000; // 5 min sem interacao = aba esquecida
+  var STALE_MS = 300000;      // acima disso o ponto fica ambar
+  var MANUAL_COOLDOWN_MS = 5000;
 
   var els = {
     app: document.getElementById("app"),
@@ -336,7 +340,14 @@
 
   var lastData = null;
   var lastOkAt = 0;
+  var lastInteractionAt = Date.now();
   var timer = null;
+
+  // A Netlify suspende o site se passar de 125 mil invocacoes no mes. Uma aba
+  // esquecida aberta num monitor consumiria isso sozinha, entao a varredura
+  // desacelera quando ninguem esta mexendo e volta ao normal no primeiro toque.
+  function isIdle() { return Date.now() - lastInteractionAt > IDLE_AFTER_MS; }
+  function currentInterval() { return isIdle() ? IDLE_MS : ACTIVE_MS; }
 
   /* ------------------------------------------------------------- helpers */
 
@@ -541,7 +552,7 @@
     var text = seconds < 60
       ? "atualizado há " + seconds + "s"
       : "atualizado há " + Math.round(seconds / 60) + " min";
-    els.fresh.textContent = text;
+    els.fresh.textContent = text + (isIdle() ? " · em espera" : "");
     els.dot.className = "dot " + (age > STALE_MS ? "stale" : "live");
   }
 
@@ -556,10 +567,11 @@
 
   /* ------------------------------------------------------------- carregar */
 
-  function load() {
+  function load(force) {
     els.app.classList.add("loading");
+    var url = force ? "/api/stats?fresh=1" : "/api/stats";
 
-    fetch("/api/stats", { headers: { accept: "application/json" }, cache: "no-store" })
+    fetch(url, { headers: { accept: "application/json" }, cache: "no-store" })
       .then(function (response) { return response.json().catch(function () { return { ok: false, error: "Resposta inválida do servidor." }; }); })
       .then(function (data) {
         if (!data || !data.ok) {
@@ -583,25 +595,54 @@
         renderFreshness();
       })
       .catch(function (error) { showBanner(String(error && error.message ? error.message : error)); })
-      .finally(function () { els.app.classList.remove("loading"); });
+      .finally(function () {
+        els.app.classList.remove("loading");
+        schedule();
+      });
   }
 
   function schedule() {
-    if (timer) clearInterval(timer);
-    timer = setInterval(function () {
-      if (document.visibilityState === "visible") load();
-    }, REFRESH_MS);
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(function () {
+      if (document.visibilityState === "visible" && Date.now() - lastOkAt >= currentInterval() - 1000) {
+        load();
+      } else {
+        schedule();
+      }
+    }, currentInterval());
   }
 
-  els.refresh.addEventListener("click", load);
+  function noteInteraction() {
+    var wasIdle = isIdle();
+    lastInteractionAt = Date.now();
+    // Saiu do modo ocioso com dado velho: busca na hora em vez de esperar.
+    if (wasIdle && Date.now() - lastOkAt > ACTIVE_MS) load();
+  }
+
+  // O clique manual pula o cache de borda; o cooldown evita que a equipe
+  // inteira martele o Notion ao mesmo tempo e tome 429.
+  els.refresh.addEventListener("click", function () {
+    if (els.refresh.disabled) return;
+    els.refresh.disabled = true;
+    els.refresh.textContent = "Atualizando…";
+    load(true);
+    setTimeout(function () {
+      els.refresh.disabled = false;
+      els.refresh.textContent = "Atualizar";
+    }, MANUAL_COOLDOWN_MS);
+  });
   document.addEventListener("visibilitychange", function () {
-    if (document.visibilityState === "visible" && Date.now() - lastOkAt > 15000) load();
+    if (document.visibilityState !== "visible") return;
+    noteInteraction();
+    if (Date.now() - lastOkAt > 10000) load();
+  });
+  ["pointerdown", "keydown", "wheel", "touchstart"].forEach(function (evt) {
+    window.addEventListener(evt, noteInteraction, { passive: true });
   });
   window.addEventListener("scroll", hideTip, { passive: true });
   setInterval(renderFreshness, 1000);
 
   load();
-  schedule();
 })();
 </script>
 </body>

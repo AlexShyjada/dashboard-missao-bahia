@@ -1,3 +1,8 @@
+# Alternativa à Netlify. O deploy documentado no README é o da Netlify;
+# isto fica aqui caso um dia valha migrar: npx wrangler deploy
+#
+# Os padrões (ID da base, títulos, DONE_VALUES, NA_VALUES) vivem em
+# src/config.js e valem para os dois hosts. Sobrescreva aqui só se precisar.
 name = "missao-bahia-dashboard"
 main = "./src/worker.js"
 compatibility_date = "2026-08-01"
@@ -7,18 +12,5 @@ directory = "./public/"
 binding = "ASSETS"
 run_worker_first = ["/api/*"]
 
-[vars]
-# ID da base "Base de candidatos" no Notion (com ou sem hifens).
-NOTION_DATABASE_ID = "3c14f290d5c480d7b649ee415cf17433"
-
-# Título exibido no topo do dashboard.
-DASHBOARD_TITLE = "Missão Bahia"
-DASHBOARD_SUBTITLE = "Base de candidatos"
-
-# Valores tratados como concluído / não aplicável, separados por vírgula.
-# A comparação ignora acentos, maiúsculas e pontuação.
-DONE_VALUES = "feito,assinado,concluido,concluida,pago,ok,sim,pronto,enviado,emitido,finalizado"
-NA_VALUES = "nao precisa,nao se aplica,n/a,na,nao aplicavel,dispensado"
-
-# O NOTION_TOKEN NÃO fica aqui. Ele entra como secret:
+# O NOTION_TOKEN não fica aqui. Ele entra como secret:
 #   npx wrangler secret put NOTION_TOKEN

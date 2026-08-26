@@ -1,0 +1,15 @@
+# A pasta public/ é servida como está; não há etapa de build.
+[build]
+  publish = "public"
+  command = ""
+
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
+
+# O NOTION_TOKEN NÃO fica aqui. Ele entra em
+# Site configuration > Environment variables, no painel da Netlify.
+# As variáveis abaixo são públicas e opcionais: sem elas valem os
+# padrões de src/config.js.
+[build.environment]
+  NODE_VERSION = "20"

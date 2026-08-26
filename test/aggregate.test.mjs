@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { buildStats, matchProperty, readValue, STAGES } from "../src/worker.js";
+import { buildStats, matchProperty, readValue, STAGES } from "../src/notion.js";
 
 const statusProp = (options) => ({
   type: "status",
