@@ -165,6 +165,9 @@
     background: var(--surface-1); border: 1px solid var(--border);
     border-radius: var(--radius); box-shadow: var(--shadow); padding: 18px 20px 16px;
   }
+  .card.clickable { cursor: pointer; }
+  .card.clickable:hover { border-color: var(--accent); }
+  .card.clickable:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   .card-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
   .card-name { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
   .step-no {
@@ -250,8 +253,90 @@
     display: flex; align-items: center; justify-content: center;
     font-size: 14px; font-weight: 640;
   }
+  .prow-avatar-btn {
+    flex: none; width: 42px; height: 42px; padding: 0; margin: 0;
+    border: none; border-radius: 50%; background: none; cursor: pointer;
+    position: relative;
+  }
+  .prow-avatar-btn:hover .prow-avatar,
+  .prow-avatar-btn:focus-visible .prow-avatar { box-shadow: 0 0 0 2px var(--accent); }
   .prow-body { min-width: 0; flex: 1; }
   .prow-name { font-size: 14.5px; font-weight: 620; margin: 0 0 2px; letter-spacing: -0.01em; }
+  .prow-name-link { color: inherit; text-decoration: none; }
+  .prow-name-link:hover { color: var(--accent); text-decoration: underline; }
+
+  /* ------------------------------------------------------------- photo modal */
+  .photo-modal {
+    position: fixed; inset: 0; z-index: 100;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .photo-modal[hidden] { display: none; }
+  .photo-modal-backdrop {
+    position: absolute; inset: 0; background: rgba(11, 11, 11, 0.72);
+  }
+  .photo-modal-dialog {
+    position: relative; z-index: 1; max-width: min(92vw, 560px); max-height: 86vh;
+    display: flex; flex-direction: column; align-items: center; gap: 12px;
+  }
+  .photo-modal-img {
+    max-width: 100%; max-height: 68vh; border-radius: 10px;
+    object-fit: contain; background: var(--surface-1);
+    box-shadow: 0 12px 40px rgba(0,0,0,0.45);
+  }
+  .photo-modal-close {
+    position: absolute; top: -14px; right: -14px; z-index: 2;
+    width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--border);
+    background: var(--surface-1); color: var(--ink); font-size: 15px;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+  }
+  .photo-modal-nav {
+    position: absolute; top: 50%; transform: translateY(-50%); z-index: 2;
+    width: 38px; height: 38px; border-radius: 50%; border: 1px solid var(--border);
+    background: var(--surface-1); color: var(--ink); font-size: 20px; line-height: 1;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+  }
+  .photo-modal-nav:hover { background: var(--track); }
+  .photo-modal-nav[hidden] { display: none; }
+  .photo-modal-prev { left: -16px; }
+  .photo-modal-next { right: -16px; }
+  .photo-modal-footer {
+    display: flex; align-items: center; gap: 14px; color: var(--ink-2); font-size: 13px;
+  }
+  .photo-modal-download {
+    font: inherit; font-size: 13px; color: var(--ink); cursor: pointer;
+    background: var(--surface-1); border: 1px solid var(--border);
+    border-radius: 999px; padding: 6px 14px;
+  }
+  .photo-modal-download:hover { background: var(--track); }
+
+  /* ------------------------------------------------------------- stage modal */
+  .stage-modal {
+    position: fixed; inset: 0; z-index: 100; padding: 20px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .stage-modal[hidden] { display: none; }
+  .stage-modal-backdrop { position: absolute; inset: 0; background: rgba(11, 11, 11, 0.72); }
+  .stage-modal-dialog {
+    position: relative; z-index: 1; width: 100%; max-width: 560px; max-height: 82vh;
+    background: var(--surface-1); border: 1px solid var(--border);
+    border-radius: var(--radius); box-shadow: var(--shadow);
+    display: flex; flex-direction: column; overflow: hidden;
+  }
+  .stage-modal-head {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 16px 18px; border-bottom: 1px solid var(--border); flex: none;
+  }
+  .stage-modal-title { font-size: 15.5px; font-weight: 640; margin: 0; letter-spacing: -0.01em; }
+  .stage-modal-count { font-size: 12.5px; color: var(--muted); margin: 2px 0 0; }
+  .stage-modal-close {
+    width: 30px; height: 30px; border-radius: 50%; border: 1px solid var(--border);
+    background: var(--surface-1); color: var(--ink); font-size: 14px;
+    cursor: pointer; display: flex; align-items: center; justify-content: center; flex: none;
+  }
+  .stage-modal-close:hover { background: var(--track); }
+  .stage-modal-body { padding: 14px 16px 18px; overflow-y: auto; }
+  .stage-modal-body .prow { box-shadow: none; }
+  .stage-modal-empty { font-size: 13.5px; color: var(--ink-2); margin: 4px 0; }
   .prow-wpp {
     font-size: 12.5px; color: var(--ink-2); text-decoration: none;
     display: inline-flex; align-items: center; gap: 4px;
@@ -346,6 +431,34 @@
 
 <div id="tip" role="tooltip" aria-hidden="true"></div>
 
+<div id="photo-modal" class="photo-modal" hidden>
+  <div class="photo-modal-backdrop" data-photo-close></div>
+  <div class="photo-modal-dialog" role="dialog" aria-modal="true" aria-label="Foto do candidato">
+    <button type="button" class="photo-modal-close" data-photo-close aria-label="Fechar">✕</button>
+    <button type="button" class="photo-modal-nav photo-modal-prev" id="photo-modal-prev" aria-label="Foto anterior">‹</button>
+    <img class="photo-modal-img" id="photo-modal-img" src="" alt="" />
+    <button type="button" class="photo-modal-nav photo-modal-next" id="photo-modal-next" aria-label="Próxima foto">›</button>
+    <div class="photo-modal-footer">
+      <span class="photo-modal-count" id="photo-modal-count"></span>
+      <button type="button" class="photo-modal-download" id="photo-modal-download">Baixar foto</button>
+    </div>
+  </div>
+</div>
+
+<div id="stage-modal" class="stage-modal" hidden>
+  <div class="stage-modal-backdrop" data-stage-close></div>
+  <div class="stage-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="stage-modal-title">
+    <div class="stage-modal-head">
+      <div>
+        <h3 class="stage-modal-title" id="stage-modal-title"></h3>
+        <p class="stage-modal-count" id="stage-modal-count"></p>
+      </div>
+      <button type="button" class="stage-modal-close" data-stage-close aria-label="Fechar">✕</button>
+    </div>
+    <div class="stage-modal-body" id="stage-modal-body"></div>
+  </div>
+</div>
+
 <script>
 (function () {
   "use strict";
@@ -372,7 +485,17 @@
     chart: document.getElementById("chart"),
     pending: document.getElementById("pending"),
     footRight: document.getElementById("foot-right"),
-    tip: document.getElementById("tip")
+    tip: document.getElementById("tip"),
+    photoModal: document.getElementById("photo-modal"),
+    photoImg: document.getElementById("photo-modal-img"),
+    photoPrev: document.getElementById("photo-modal-prev"),
+    photoNext: document.getElementById("photo-modal-next"),
+    photoCount: document.getElementById("photo-modal-count"),
+    photoDownload: document.getElementById("photo-modal-download"),
+    stageModal: document.getElementById("stage-modal"),
+    stageModalTitle: document.getElementById("stage-modal-title"),
+    stageModalCount: document.getElementById("stage-modal-count"),
+    stageModalBody: document.getElementById("stage-modal-body")
   };
 
   var lastData = null;
@@ -528,6 +651,19 @@
       card.appendChild(bar);
       card.appendChild(legend);
 
+      // O card inteiro abre a lista de quem está pendente nesta etapa —
+      // mesma fonte de dado da seção "Candidatos com pendência", filtrada.
+      card.classList.add("clickable");
+      card.tabIndex = 0;
+      card.setAttribute("role", "button");
+      card.setAttribute("aria-haspopup", "dialog");
+      card.setAttribute("aria-label", "Ver candidatos pendentes em " + stage.label);
+      card.addEventListener("click", function () { openStageModal(stage); });
+      card.addEventListener("keydown", function (event) {
+        if (event.target !== card) return;
+        if (event.key === "Enter" || event.key === " ") { event.preventDefault(); openStageModal(stage); }
+      });
+
       // Numa coluna de documento, o que trava a etapa é a assinatura.
       if (stage.requiresSignature && stage.partial > 0) {
         var note = document.createElement("p");
@@ -605,11 +741,18 @@
       return;
     }
 
-    els.pending.innerHTML = list.map(function (candidate) {
-      var avatar = candidate.photoUrl
+    els.pending.innerHTML = list.map(function (candidate, index) {
+      var avatarInner = candidate.photoUrl
         ? '<img class="prow-avatar" data-name="' + esc(candidate.name || "") +
           '" src="' + esc(candidate.photoUrl) + '" alt="" />'
         : '<div class="prow-avatar">' + esc(initials(candidate.name)) + "</div>";
+
+      var hasPhotos = candidate.photos && candidate.photos.length > 0;
+      var avatar = hasPhotos
+        ? '<button type="button" class="prow-avatar-btn" data-index="' + index +
+          '" aria-label="Ver foto de ' + esc(candidate.name || "candidato") + '">' +
+          avatarInner + "</button>"
+        : avatarInner;
 
       var wppHref = whatsappHref(candidate.whatsapp);
       var wpp = !candidate.whatsapp ? "" :
@@ -623,8 +766,13 @@
           (ICONS[kind] || "") + esc(p.stageLabel) + "</span>";
       }).join("");
 
+      var nameText = esc(candidate.name || "Sem nome");
+      var name = candidate.notionUrl
+        ? '<a class="prow-name-link" href="' + esc(candidate.notionUrl) + '" target="_blank" rel="noopener">' + nameText + "</a>"
+        : nameText;
+
       return '<div class="prow">' + avatar +
-        '<div class="prow-body"><p class="prow-name">' + esc(candidate.name || "Sem nome") + "</p>" +
+        '<div class="prow-body"><p class="prow-name">' + name + "</p>" +
         wpp + '<div class="prow-tags">' + tags + "</div></div></div>";
     }).join("");
 
@@ -638,7 +786,193 @@
         img.replaceWith(div);
       });
     });
+
+    els.pending.querySelectorAll(".prow-avatar-btn").forEach(function (btn) {
+      var candidate = list[Number(btn.getAttribute("data-index"))];
+      btn.addEventListener("click", function () {
+        openPhotoModal(candidate.photos, candidate.name);
+      });
+    });
   }
+
+  /* --------------------------------------------------------------- foto modal */
+
+  // Trava o scroll da página enquanto qualquer modal (foto ou etapa) estiver
+  // aberto; libera só quando os dois estiverem fechados.
+  function syncBodyScrollLock() {
+    var locked = !els.photoModal.hidden || !els.stageModal.hidden;
+    document.body.style.overflow = locked ? "hidden" : "";
+  }
+
+  var photoState = { photos: [], index: 0, name: "" };
+
+  function updatePhotoModal() {
+    var multi = photoState.photos.length > 1;
+    els.photoImg.src = photoState.photos[photoState.index] || "";
+    els.photoImg.alt = photoState.name ? "Foto de " + photoState.name : "";
+    els.photoPrev.hidden = !multi;
+    els.photoNext.hidden = !multi;
+    els.photoCount.textContent = multi ? (photoState.index + 1) + " de " + photoState.photos.length : "";
+  }
+
+  function openPhotoModal(photos, name) {
+    if (!photos || !photos.length) return;
+    photoState = { photos: photos, index: 0, name: name || "" };
+    updatePhotoModal();
+    els.photoModal.hidden = false;
+    syncBodyScrollLock();
+  }
+
+  function closePhotoModal() {
+    els.photoModal.hidden = true;
+    syncBodyScrollLock();
+  }
+
+  function navigatePhoto(delta) {
+    var total = photoState.photos.length;
+    if (!total) return;
+    photoState.index = (photoState.index + delta + total) % total;
+    updatePhotoModal();
+  }
+
+  function guessExtension(url) {
+    try {
+      var match = /\.([a-z0-9]{2,5})$/i.exec(new URL(url).pathname);
+      return match ? match[1] : "jpg";
+    } catch (e) { return "jpg"; }
+  }
+
+  // A URL de foto do Notion é de outra origem, então o atributo "download" sozinho
+  // não força o salvamento — baixa como blob e cria o link; se o fetch falhar
+  // (CORS), cai para abrir a foto numa nova aba para salvar manualmente.
+  function downloadCurrentPhoto() {
+    var url = photoState.photos[photoState.index];
+    if (!url) return;
+    var base = (photoState.name || "foto").normalize("NFD").replace(/[̀-ͯ]/g, "")
+      .replace(/[^a-z0-9]+/gi, "-").toLowerCase().replace(/^-+|-+$/g, "") || "foto";
+    var suffix = photoState.photos.length > 1 ? "-" + (photoState.index + 1) : "";
+    var filename = base + suffix + "." + guessExtension(url);
+
+    fetch(url)
+      .then(function (response) { if (!response.ok) throw new Error("download falhou"); return response.blob(); })
+      .then(function (blob) {
+        var href = URL.createObjectURL(blob);
+        var link = document.createElement("a");
+        link.href = href;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        setTimeout(function () { URL.revokeObjectURL(href); }, 4000);
+      })
+      .catch(function () { window.open(url, "_blank", "noopener"); });
+  }
+
+  els.photoPrev.addEventListener("click", function () { navigatePhoto(-1); });
+  els.photoNext.addEventListener("click", function () { navigatePhoto(1); });
+  els.photoDownload.addEventListener("click", downloadCurrentPhoto);
+  els.photoModal.querySelectorAll("[data-photo-close]").forEach(function (elm) {
+    elm.addEventListener("click", closePhotoModal);
+  });
+  document.addEventListener("keydown", function (event) {
+    if (!els.photoModal.hidden) {
+      if (event.key === "Escape") closePhotoModal();
+      else if (event.key === "ArrowLeft") navigatePhoto(-1);
+      else if (event.key === "ArrowRight") navigatePhoto(1);
+      return;
+    }
+    if (!els.stageModal.hidden && event.key === "Escape") closeStageModal();
+  });
+
+  /* -------------------------------------------------------------- etapa modal */
+
+  // Mesma fonte de dado da seção "Candidatos com pendência" (só quem tem
+  // etapa não fechada), filtrada para a etapa clicada.
+  function candidatesForStage(stageKey) {
+    var list = (lastData && lastData.candidatesPending) || [];
+    return list.reduce(function (acc, candidate) {
+      var entry = candidate.pending.filter(function (p) { return p.stageKey === stageKey; })[0];
+      if (entry) acc.push({ candidate: candidate, entry: entry });
+      return acc;
+    }, []);
+  }
+
+  function renderStageModalBody(rows) {
+    if (!rows.length) {
+      els.stageModalBody.innerHTML =
+        '<p class="stage-modal-empty">Ninguém pendente nesta etapa — todo mundo em dia.</p>';
+      return;
+    }
+
+    els.stageModalBody.innerHTML = '<div class="pending-list">' + rows.map(function (row, index) {
+      var candidate = row.candidate;
+      var kind = row.entry.status === "partial" ? "partial" : "pending";
+
+      var avatarInner = candidate.photoUrl
+        ? '<img class="prow-avatar" data-name="' + esc(candidate.name || "") +
+          '" src="' + esc(candidate.photoUrl) + '" alt="" />'
+        : '<div class="prow-avatar">' + esc(initials(candidate.name)) + "</div>";
+      var hasPhotos = candidate.photos && candidate.photos.length > 0;
+      var avatar = hasPhotos
+        ? '<button type="button" class="prow-avatar-btn" data-index="' + index +
+          '" aria-label="Ver foto de ' + esc(candidate.name || "candidato") + '">' +
+          avatarInner + "</button>"
+        : avatarInner;
+
+      var wppHref = whatsappHref(candidate.whatsapp);
+      var wpp = !candidate.whatsapp ? "" :
+        wppHref
+          ? '<a class="prow-wpp" href="' + esc(wppHref) + '" target="_blank" rel="noopener">' + esc(candidate.whatsapp) + "</a>"
+          : '<span class="prow-wpp">' + esc(candidate.whatsapp) + "</span>";
+
+      var nameText = esc(candidate.name || "Sem nome");
+      var name = candidate.notionUrl
+        ? '<a class="prow-name-link" href="' + esc(candidate.notionUrl) + '" target="_blank" rel="noopener">' + nameText + "</a>"
+        : nameText;
+
+      var tag = '<span class="tag"><span class="sw" style="background:var(--st-' + kind + ')"></span>' +
+        (ICONS[kind] || "") + esc(KIND_WORD[kind]) + "</span>";
+
+      return '<div class="prow">' + avatar +
+        '<div class="prow-body"><p class="prow-name">' + name + "</p>" +
+        wpp + '<div class="prow-tags">' + tag + "</div></div></div>";
+    }).join("") + "</div>";
+
+    els.stageModalBody.querySelectorAll("img.prow-avatar").forEach(function (img) {
+      img.addEventListener("error", function () {
+        var div = document.createElement("div");
+        div.className = "prow-avatar";
+        div.textContent = initials(img.getAttribute("data-name"));
+        img.replaceWith(div);
+      });
+    });
+    els.stageModalBody.querySelectorAll(".prow-avatar-btn").forEach(function (btn) {
+      var row = rows[Number(btn.getAttribute("data-index"))];
+      btn.addEventListener("click", function () {
+        openPhotoModal(row.candidate.photos, row.candidate.name);
+      });
+    });
+  }
+
+  function openStageModal(stage) {
+    var rows = candidatesForStage(stage.key);
+    els.stageModalTitle.textContent = stage.label;
+    els.stageModalCount.textContent = rows.length
+      ? rows.length + (rows.length === 1 ? " candidato pendente" : " candidatos pendentes")
+      : "";
+    renderStageModalBody(rows);
+    els.stageModal.hidden = false;
+    syncBodyScrollLock();
+  }
+
+  function closeStageModal() {
+    els.stageModal.hidden = true;
+    syncBodyScrollLock();
+  }
+
+  els.stageModal.querySelectorAll("[data-stage-close]").forEach(function (elm) {
+    elm.addEventListener("click", closeStageModal);
+  });
 
   function renderHero(data) {
     els.hero.innerHTML = (data.overall.pct === null ? "—" : Math.round(data.overall.pct * 100)) + "<span>%</span>";

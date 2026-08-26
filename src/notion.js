@@ -262,14 +262,12 @@ function readTitleValue(property) {
   return (property.title ?? []).map((t) => t.plain_text).join("").trim() || null;
 }
 
-/** URL do primeiro arquivo de uma coluna Files & media (ex.: foto). */
-function readFileUrlValue(property) {
-  if (!property || property.type !== "files") return null;
-  const first = (property.files ?? [])[0];
-  if (!first) return null;
-  if (first.type === "external") return first.external?.url ?? null;
-  if (first.type === "file") return first.file?.url ?? null;
-  return null;
+/** URLs de todos os arquivos de uma coluna Files & media (ex.: foto), na ordem do Notion. */
+function readFileUrlListValue(property) {
+  if (!property || property.type !== "files") return [];
+  return (property.files ?? [])
+    .map((f) => (f.type === "external" ? f.external?.url : f.type === "file" ? f.file?.url : null))
+    .filter(Boolean);
 }
 
 /** Texto livre (ex.: WhatsApp), aceitando telefone, texto ou URL. */
@@ -429,12 +427,17 @@ export function buildStats(pages, schema, env) {
   const whatsappProp = matchProperty(schema, CANDIDATE_FIELDS.whatsapp);
 
   const candidatesPending = pages
-    .map((page, i) => ({
-      name: nameProp ? readTitleValue(page.properties?.[nameProp]) : null,
-      photoUrl: photoProp ? readFileUrlValue(page.properties?.[photoProp]) : null,
-      whatsapp: whatsappProp ? readTextLikeValue(page.properties?.[whatsappProp]) : null,
-      pending: pagePendencies[i],
-    }))
+    .map((page, i) => {
+      const photos = photoProp ? readFileUrlListValue(page.properties?.[photoProp]) : [];
+      return {
+        name: nameProp ? readTitleValue(page.properties?.[nameProp]) : null,
+        photoUrl: photos[0] ?? null,
+        photos,
+        whatsapp: whatsappProp ? readTextLikeValue(page.properties?.[whatsappProp]) : null,
+        notionUrl: page.url ?? null,
+        pending: pagePendencies[i],
+      };
+    })
     .filter((c) => c.pending.length > 0)
     .sort((a, b) => b.pending.length - a.pending.length);
 

@@ -200,12 +200,25 @@ bug.**
 Colunas usadas: `CANDIDATE_FIELDS` em `src/notion.js` (`Nome`, `Foto`,
 `WhatsApp`), casadas pelo mesmo `matchProperty()` tolerante a acento/typo que
 as etapas usam. Se a base não tiver uma dessas colunas, o campo correspondente
-vem `null` sem quebrar nada (`readTitleValue`/`readFileUrlValue`/
+vem `null` sem quebrar nada (`readTitleValue`/`readFileUrlListValue`/
 `readTextLikeValue`). A URL de foto que o Notion devolve para colunas
 "Files & media" hospedadas por ele expira depois de um tempo; como
 `buildStats()` roda a cada leitura, a URL é sempre a mais recente — a
 página troca por um avatar de iniciais se a imagem já tiver expirado
-(`img.onerror` em `renderPending()`).
+(`img.onerror` em `renderPending()`). `Foto` pode ter mais de um arquivo:
+`readFileUrlListValue()` devolve todos, na ordem do Notion, em
+`candidate.photos`; `photoUrl` (usado no avatar pequeno) é sempre `photos[0]`
+para não duplicar a URL mais recente em dois formatos.
+
+`candidatesPending` também traz `notionUrl` (`page.url`), um link direto para
+a página do candidato no Notion — usado para deixar o nome clicável na lista.
+É uma exceção dentro da exceção: diferente de nome/foto/WhatsApp, esse campo
+não vem de uma coluna escolhida a dedo, é a URL da página inteira (26
+colunas, inclusive as que nunca são agregadas). Só é seguro expor porque abrir
+o link exige acesso ao workspace do Notion — quem só tem o link do dashboard
+não entra na página. **Se esse pressuposto mudar (ex.: a base virar
+compartilhada publicamente no Notion), reavaliar com o usuário antes de
+manter `notionUrl` na resposta.**
 
 **Ao adicionar qualquer *outro* campo à resposta da API, verificar se ele é
 agregado — a exceção acima é a única aprovada, não um precedente geral.**
@@ -247,11 +260,17 @@ Três blocos de visualização, todos em `public/index.html`:
 - **Candidatos com pendência** (`renderPending` / `.pending-list`): lista de
   quem tem alguma etapa não fechada, ordenada pela API (mais pendências
   primeiro). Único bloco com dado pessoal — ver "Privacidade". Cada linha
-  (`.prow`) é avatar (foto ou iniciais em `.prow-avatar`), nome, link
-  `wa.me/<dígitos>` do WhatsApp quando dá para extrair dígito, e uma etiqueta
-  (`.tag`) por etapa pendente reaproveitando `ICONS`/cores de `--st-partial`
-  e `--st-pending` das barras — mesma linguagem visual, não uma paleta nova.
-  Lista vazia mostra uma mensagem positiva (`.pending-empty`) em vez de nada.
+  (`.prow`) é avatar (foto ou iniciais em `.prow-avatar`), nome (linkado para
+  `notionUrl` quando existe), link `wa.me/<dígitos>` do WhatsApp quando dá
+  para extrair dígito, e uma etiqueta (`.tag`) por etapa pendente
+  reaproveitando `ICONS`/cores de `--st-partial` e `--st-pending` das barras —
+  mesma linguagem visual, não uma paleta nova. Lista vazia mostra uma
+  mensagem positiva (`.pending-empty`) em vez de nada. Quando `candidate.photos`
+  tem alguma foto, o avatar vira botão e abre `#photo-modal`: carrossel
+  (`‹`/`›`, ou seta do teclado) quando há mais de uma, e "Baixar foto" busca a
+  imagem como blob para forçar o download — a URL do Notion é de outra
+  origem, então o atributo `download` sozinho não bastaria; se o `fetch`
+  falhar (CORS), cai para abrir a foto numa aba nova.
 
 A pedido do usuário (26/08/2026), removidos da página: o card de "Aceitou
 Fundão" (etapa `excludeFromOverall` continua nos dados, só não renderiza),
@@ -297,6 +316,11 @@ Pendências abertas, em ordem:
    sem resposta.
 2. Se o link for exposto demais, fechar com Netlify Identity ou Cloudflare
    Access.
+3. **Modal de foto (carrossel + download) e link do nome para o Notion são
+   mudança recente, ainda não commitada e sem cobertura em
+   `aggregate.test.mjs`.** `middle.photoUrl` é o único teste hoje que toca
+   nesses campos. Antes de considerar a feature pronta, cobrir `photos`
+   (múltiplas fotos, ordem) e `notionUrl` no teste de agregação.
 
 ## Snapshot dos dados (26/08/2026, 21 candidatos)
 
