@@ -38,6 +38,10 @@ Para rodar uma suíte isolada: `node test/aggregate.test.mjs` (cada arquivo é u
 script `.mjs` com asserts próprios, sai com código não-zero ao falhar). Não há
 build nem lint — `public/` é servido como está.
 
+Deploy do adaptador alternativo (`src/worker.js`): `npx wrangler deploy`, configurado
+por `wrangler.toml`. Não faz parte do fluxo principal (Netlify), só existe como
+alternativa de host.
+
 ## Arquitetura
 
 ```
@@ -63,6 +67,12 @@ adaptador de ~40 linhas.
 3. `GET /v1/data_sources/{id}` traz o schema (nomes e opções das colunas).
 4. `POST /v1/data_sources/{id}/query` pagina de 100 em 100, teto de 40 páginas.
 5. `buildStats()` agrega e devolve só contagens.
+
+Tudo em `src/config.js` é sobrescrevível por variável de ambiente (Netlify ou
+`.env` local), com o default hardcoded como fallback: `NOTION_DATABASE_ID`,
+`DASHBOARD_TITLE`/`DASHBOARD_SUBTITLE`, `DONE_VALUES`, `SIGNED_VALUES`,
+`NA_VALUES`, `EDGE_TTL_SECONDS`. Não precisa mexer em código para trocar a
+base, os rótulos ou o que conta como concluído — só a variável.
 
 ## A base no Notion
 

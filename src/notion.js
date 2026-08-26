@@ -13,7 +13,7 @@ const EDGE_TTL_SECONDS = 10;
 const STAGES = [
   {
     key: "ligou",
-    label: "Já ligou",
+    label: "Ligações de Rafael",
     property: "Já ligou?",
     aliases: ["Já ligou", "Ligou", "Ja ligou?"],
   },
@@ -34,13 +34,13 @@ const STAGES = [
   },
   {
     key: "material",
-    label: "Material de campanha",
+    label: "Design do material de campanha",
     property: "Já foi feito o Material?",
     aliases: ["Já foi feito o Material", "Material de campanha feito", "Material feito"],
   },
   {
     key: "grafica",
-    label: "Confeccionado na gráfica",
+    label: "Impressão do material de campanha na gráfica",
     // A coluna hoje esta grafada "Confecionado" (um C). Os aliases cobrem a
     // grafia corrigida, para o dashboard nao quebrar se alguem arrumar o typo.
     property: "Confecionado na gráfica?",
