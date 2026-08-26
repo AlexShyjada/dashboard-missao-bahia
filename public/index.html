@@ -1,0 +1,608 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex" />
+<title>Missão Bahia · Base de candidatos</title>
+<style>
+  :root {
+    color-scheme: light;
+    --plane:      #f9f9f7;
+    --surface-1:  #fcfcfb;
+    --ink:        #0b0b0b;
+    --ink-2:      #52514e;
+    --muted:      #898781;
+    --grid:       #e1e0d9;
+    --axis:       #c3c2b7;
+    --border:     rgba(11, 11, 11, 0.10);
+    --accent:     #2a78d6;
+    --track:      #eceae4;
+
+    --st-done:    #0ca30c;
+    --st-done-2:  #0a7f0a;
+    --st-done-3:  #085f08;
+    --st-pending: #fab219;
+    --st-pend-2:  #d99400;
+    --st-pend-3:  #b87a00;
+    --st-na:      #898781;
+    --st-na-2:    #6f6e69;
+    --st-empty:   #c3c2b7;
+
+    --radius:     14px;
+    --shadow:     0 1px 2px rgba(11,11,11,0.04), 0 8px 24px rgba(11,11,11,0.04);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --plane:      #0d0d0d;
+      --surface-1:  #1a1a19;
+      --ink:        #ffffff;
+      --ink-2:      #c3c2b7;
+      --muted:      #898781;
+      --grid:       #2c2c2a;
+      --axis:       #383835;
+      --border:     rgba(255, 255, 255, 0.10);
+      --accent:     #3987e5;
+      --track:      #262624;
+
+      --st-done:    #0ca30c;
+      --st-done-2:  #14c014;
+      --st-done-3:  #5cd45c;
+      --st-pending: #fab219;
+      --st-pend-2:  #d99400;
+      --st-pend-3:  #f7cd6b;
+      --st-na:      #898781;
+      --st-na-2:    #a5a39c;
+      --st-empty:   #4a4a46;
+      --shadow:     0 1px 2px rgba(0,0,0,0.4), 0 8px 24px rgba(0,0,0,0.28);
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --plane: #0d0d0d; --surface-1: #1a1a19; --ink: #ffffff; --ink-2: #c3c2b7;
+    --muted: #898781; --grid: #2c2c2a; --axis: #383835;
+    --border: rgba(255,255,255,0.10); --accent: #3987e5; --track: #262624;
+    --st-done: #0ca30c; --st-done-2: #14c014; --st-done-3: #5cd45c;
+    --st-pending: #fab219; --st-pend-2: #d99400; --st-pend-3: #f7cd6b;
+    --st-na: #898781; --st-na-2: #a5a39c; --st-empty: #4a4a46;
+    --shadow: 0 1px 2px rgba(0,0,0,0.4), 0 8px 24px rgba(0,0,0,0.28);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--plane);
+    color: var(--ink);
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-size: 15px;
+    line-height: 1.45;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 28px 20px 64px; }
+
+  /* ---------------------------------------------------------------- header */
+  header.top {
+    display: flex; flex-wrap: wrap; align-items: flex-end;
+    justify-content: space-between; gap: 16px; margin-bottom: 24px;
+  }
+  .title { font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase;
+           color: var(--muted); font-weight: 600; margin: 0 0 2px; }
+  .subtitle { font-size: 26px; font-weight: 650; letter-spacing: -0.02em; margin: 0; }
+  .meta { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .pill {
+    display: inline-flex; align-items: center; gap: 7px;
+    background: var(--surface-1); border: 1px solid var(--border);
+    border-radius: 999px; padding: 6px 12px;
+    font-size: 13px; color: var(--ink-2);
+  }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--st-done); flex: none; }
+  .dot.live { animation: pulse 2.4s ease-in-out infinite; }
+  .dot.stale { background: var(--st-pending); animation: none; }
+  .dot.error { background: #d03b3b; animation: none; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.35; } }
+  @media (prefers-reduced-motion: reduce) { .dot.live { animation: none; } }
+
+  button.ghost {
+    font: inherit; font-size: 13px; color: var(--ink-2); cursor: pointer;
+    background: var(--surface-1); border: 1px solid var(--border);
+    border-radius: 999px; padding: 6px 14px;
+  }
+  button.ghost:hover { background: var(--track); }
+  button.ghost:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  /* ------------------------------------------------------------------ hero */
+  .hero {
+    background: var(--surface-1); border: 1px solid var(--border);
+    border-radius: var(--radius); box-shadow: var(--shadow);
+    padding: 24px 26px; margin-bottom: 20px;
+    display: grid; grid-template-columns: minmax(200px, 260px) 1fr;
+    gap: 16px 36px; align-items: center;
+  }
+  @media (max-width: 760px) { .hero { grid-template-columns: 1fr; gap: 22px; } }
+  .hero-figure { min-width: 0; }
+  .hero-label { font-size: 13px; color: var(--ink-2); margin: 0 0 4px; }
+  .hero-value { font-size: 56px; line-height: 1; font-weight: 660; letter-spacing: -0.03em; margin: 0; }
+  .hero-value span { font-size: 26px; font-weight: 500; color: var(--muted); margin-left: 2px; }
+  .hero-note { font-size: 13px; color: var(--muted); margin: 8px 0 0; }
+  .hero-meter { min-width: 0; }
+  .meter-track {
+    height: 10px; border-radius: 5px; background: var(--track);
+    overflow: hidden; margin-bottom: 8px;
+  }
+  .meter-fill {
+    height: 100%; border-radius: 0 4px 4px 0; background: var(--accent);
+    transition: width .45s cubic-bezier(.4,0,.2,1);
+  }
+  .meter-legend { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); }
+  .stat-row {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+    gap: 8px 22px; margin-top: 18px;
+  }
+  .stat { min-width: 0; }
+  .stat b { display: block; font-size: 20px; font-weight: 620; letter-spacing: -0.01em;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .stat.is-text b { font-size: 15px; line-height: 1.25; white-space: normal;
+                    overflow: visible; padding-top: 2px; }
+  .stat small { font-size: 12px; color: var(--muted); display: block; line-height: 1.3; }
+
+  /* ------------------------------------------------------------ stage cards */
+  h2.section {
+    font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--muted); font-weight: 600; margin: 30px 0 12px;
+  }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(324px, 1fr)); gap: 14px; }
+  .card {
+    background: var(--surface-1); border: 1px solid var(--border);
+    border-radius: var(--radius); box-shadow: var(--shadow); padding: 18px 20px 16px;
+  }
+  .card-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+  .card-name { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+  .step-no {
+    font-size: 11px; font-weight: 700; color: var(--muted);
+    font-variant-numeric: tabular-nums; flex: none;
+  }
+  .card-title { font-size: 15px; font-weight: 620; margin: 0; letter-spacing: -0.01em;
+                line-height: 1.25; }
+  .card-head { min-height: 2.5em; }
+  .card-value { font-size: 19px; font-weight: 640; letter-spacing: -0.01em;
+                flex: none; white-space: nowrap; }
+  .card-value small { font-size: 12px; font-weight: 500; color: var(--muted); }
+  .card-prop {
+    font-size: 11.5px; color: var(--muted); margin: 2px 0 14px 20px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+
+  .bar { display: flex; gap: 2px; height: 18px; border-radius: 4px; overflow: hidden; }
+  .seg { min-width: 3px; cursor: default; transition: width .45s cubic-bezier(.4,0,.2,1); }
+  .seg:first-child { border-radius: 4px 0 0 4px; }
+  .seg:last-child  { border-radius: 0 4px 4px 0; }
+  .seg:only-child  { border-radius: 4px; }
+  .seg:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 12px; }
+  .lg { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--ink-2); }
+  .lg .sw { width: 9px; height: 9px; border-radius: 2px; flex: none; }
+  .lg .ic { width: 12px; height: 12px; flex: none; color: var(--muted); }
+  .lg b { font-weight: 620; font-variant-numeric: tabular-nums; color: var(--ink); }
+  .lg .pc { color: var(--muted); font-variant-numeric: tabular-nums; }
+
+  .missing {
+    font-size: 12.5px; color: var(--ink-2); background: var(--track);
+    border-radius: 8px; padding: 10px 12px; margin-top: 4px;
+  }
+
+  /* ----------------------------------------------------------------- funil */
+  .funnel { background: var(--surface-1); border: 1px solid var(--border);
+            border-radius: var(--radius); box-shadow: var(--shadow); padding: 20px 24px 18px; }
+  .frow { display: grid; grid-template-columns: 1fr; gap: 5px; padding: 8px 0; }
+  .frow + .frow { border-top: 1px solid var(--grid); }
+  .fhead { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; font-size: 13px; }
+  .fname { color: var(--ink); font-weight: 560; min-width: 0;
+           overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .fval { color: var(--ink-2); font-variant-numeric: tabular-nums; flex: none; }
+  .fval b { color: var(--ink); font-weight: 640; }
+  .ftrack { height: 8px; border-radius: 4px; background: var(--track); overflow: hidden; }
+  .ffill { height: 100%; border-radius: 0 4px 4px 0; background: var(--accent);
+           transition: width .45s cubic-bezier(.4,0,.2,1); }
+
+  /* ---------------------------------------------------------------- tabela */
+  details.table-view { margin-top: 22px; }
+  details.table-view > summary {
+    cursor: pointer; font-size: 13px; color: var(--ink-2);
+    padding: 8px 0; list-style: none; display: inline-flex; align-items: center; gap: 7px;
+  }
+  details.table-view > summary::-webkit-details-marker { display: none; }
+  details.table-view > summary::before { content: "▸"; color: var(--muted); font-size: 11px; }
+  details.table-view[open] > summary::before { content: "▾"; }
+  .table-scroll { overflow-x: auto; border: 1px solid var(--border);
+                  border-radius: var(--radius); background: var(--surface-1); }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; }
+  th, td { padding: 10px 14px; text-align: right; white-space: nowrap;
+           border-bottom: 1px solid var(--grid); font-variant-numeric: tabular-nums; }
+  th:first-child, td:first-child { text-align: left; font-variant-numeric: normal; }
+  thead th { font-weight: 600; color: var(--ink-2); font-size: 12px;
+             text-transform: uppercase; letter-spacing: 0.05em; }
+  tbody tr:last-child td { border-bottom: none; }
+
+  /* --------------------------------------------------------------- estados */
+  #app.loading { opacity: 0.45; }
+  #app { transition: opacity .2s ease; }
+  .banner {
+    background: var(--surface-1); border: 1px solid var(--border);
+    border-left: 3px solid #d03b3b; border-radius: 10px;
+    padding: 14px 16px; margin-bottom: 18px; font-size: 13.5px; color: var(--ink-2);
+  }
+  .banner b { color: var(--ink); display: block; margin-bottom: 3px; }
+  .banner code { background: var(--track); padding: 1px 5px; border-radius: 4px;
+                 font-size: 12px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+  footer.foot { margin-top: 34px; font-size: 12px; color: var(--muted); display: flex;
+                justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+  footer.foot a { color: var(--ink-2); }
+
+  #tip {
+    position: fixed; z-index: 50; pointer-events: none; opacity: 0;
+    transform: translate(-50%, -100%); transition: opacity .12s ease;
+    background: var(--surface-1); color: var(--ink); border: 1px solid var(--border);
+    border-radius: 8px; box-shadow: var(--shadow); padding: 8px 11px;
+    font-size: 12.5px; white-space: nowrap; max-width: 260px;
+  }
+  #tip.on { opacity: 1; }
+  #tip .t-l { display: flex; align-items: center; gap: 7px; font-weight: 600; }
+  #tip .t-v { color: var(--ink-2); margin-top: 2px; font-variant-numeric: tabular-nums; }
+  #tip .sw { width: 9px; height: 9px; border-radius: 2px; flex: none; }
+
+  @media (max-width: 560px) {
+    .hero-value { font-size: 46px; }
+    .subtitle { font-size: 22px; }
+    .wrap { padding: 20px 14px 48px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <p class="title" id="brand">Missão Bahia</p>
+      <h1 class="subtitle" id="brand-sub">Base de candidatos</h1>
+    </div>
+    <div class="meta">
+      <span class="pill"><span class="dot live" id="dot"></span><span id="freshness">carregando…</span></span>
+      <button class="ghost" id="refresh" type="button">Atualizar</button>
+    </div>
+  </header>
+
+  <div id="banner-slot"></div>
+
+  <main id="app">
+    <section class="hero">
+      <div class="hero-figure">
+        <p class="hero-label">Progresso geral da operação</p>
+        <p class="hero-value" id="hero">—<span>%</span></p>
+        <p class="hero-note" id="hero-note">Aguardando dados do Notion</p>
+      </div>
+      <div class="hero-meter">
+        <div class="meter-track"><div class="meter-fill" id="hero-meter" style="width:0%"></div></div>
+        <div class="meter-legend"><span>0%</span><span>100%</span></div>
+        <div class="stat-row" id="hero-stats"></div>
+      </div>
+    </section>
+
+    <h2 class="section">Progressão por etapa</h2>
+    <div class="grid" id="cards"></div>
+
+    <h2 class="section">Funil</h2>
+    <div class="funnel" id="funnel"></div>
+
+    <details class="table-view">
+      <summary>Ver tabela de valores</summary>
+      <div class="table-scroll"><table id="table"></table></div>
+    </details>
+  </main>
+
+  <footer class="foot">
+    <span id="foot-left">Os dados vêm da base do Notion. Nenhum dado pessoal de candidato sai do servidor.</span>
+    <span id="foot-right"></span>
+  </footer>
+</div>
+
+<div id="tip" role="tooltip" aria-hidden="true"></div>
+
+<script>
+(function () {
+  "use strict";
+
+  var REFRESH_MS = 45000;
+  var STALE_MS = 150000;
+
+  var els = {
+    app: document.getElementById("app"),
+    dot: document.getElementById("dot"),
+    fresh: document.getElementById("freshness"),
+    refresh: document.getElementById("refresh"),
+    banner: document.getElementById("banner-slot"),
+    brand: document.getElementById("brand"),
+    brandSub: document.getElementById("brand-sub"),
+    hero: document.getElementById("hero"),
+    heroNote: document.getElementById("hero-note"),
+    heroMeter: document.getElementById("hero-meter"),
+    heroStats: document.getElementById("hero-stats"),
+    cards: document.getElementById("cards"),
+    funnel: document.getElementById("funnel"),
+    table: document.getElementById("table"),
+    footRight: document.getElementById("foot-right"),
+    tip: document.getElementById("tip")
+  };
+
+  var lastData = null;
+  var lastOkAt = 0;
+  var timer = null;
+
+  /* ------------------------------------------------------------- helpers */
+
+  function pct(value) {
+    if (value === null || value === undefined) return "—";
+    return Math.round(value * 100) + "%";
+  }
+
+  function esc(value) {
+    return String(value === null || value === undefined ? "" : value)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
+  // A cor sai do "kind" (concluido / pendente / nao aplicavel / vazio).
+  // Quando um kind tem mais de um rotulo, os seguintes usam um passo proprio
+  // da mesma matiz; a legenda e a tabela desambiguam pelo nome.
+  var RAMPS = {
+    done:    ["--st-done", "--st-done-2", "--st-done-3"],
+    pending: ["--st-pending", "--st-pend-2", "--st-pend-3"],
+    na:      ["--st-na", "--st-na-2"],
+    empty:   ["--st-empty"]
+  };
+
+  function paint(breakdown) {
+    var seen = { done: 0, pending: 0, na: 0, empty: 0 };
+    return breakdown.map(function (bucket) {
+      var ramp = RAMPS[bucket.kind] || RAMPS.empty;
+      var index = Math.min(seen[bucket.kind] || 0, ramp.length - 1);
+      seen[bucket.kind] = (seen[bucket.kind] || 0) + 1;
+      var copy = {};
+      for (var k in bucket) copy[k] = bucket[k];
+      copy.color = "var(" + ramp[index] + ")";
+      return copy;
+    });
+  }
+
+  // Icone por estado: a cor nunca carrega o significado sozinha.
+  var ICONS = {
+    done:    '<svg class="ic" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 8.5l3.2 3.2L13 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    pending: '<svg class="ic" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.8"/><path d="M8 4.6V8l2.4 1.6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',
+    na:      '<svg class="ic" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3.5 8h9" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
+    empty:   '<svg class="ic" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.6" stroke-dasharray="2.4 2.2"/></svg>'
+  };
+  var KIND_WORD = { done: "concluído", pending: "pendente", na: "não se aplica", empty: "em branco" };
+
+  /* -------------------------------------------------------------- tooltip */
+
+  function showTip(event, bucket, total) {
+    els.tip.innerHTML =
+      '<div class="t-l"><span class="sw" style="background:' + bucket.color + '"></span>' + esc(bucket.label) + "</div>" +
+      '<div class="t-v">' + bucket.count + " de " + total + " · " + pct(bucket.pct) + "</div>";
+    var box = event.currentTarget.getBoundingClientRect();
+    els.tip.style.left = (box.left + box.width / 2) + "px";
+    els.tip.style.top = (box.top - 8) + "px";
+    els.tip.classList.add("on");
+    els.tip.setAttribute("aria-hidden", "false");
+  }
+  function hideTip() {
+    els.tip.classList.remove("on");
+    els.tip.setAttribute("aria-hidden", "true");
+  }
+
+  /* ------------------------------------------------------------ renderers */
+
+  function renderCards(data) {
+    els.cards.innerHTML = "";
+
+    data.stages.forEach(function (stage, index) {
+      var card = document.createElement("section");
+      card.className = "card";
+
+      if (!stage.propertyFound) {
+        card.innerHTML =
+          '<div class="card-head"><div class="card-name">' +
+          '<span class="step-no">' + (index + 1) + "</span>" +
+          '<h3 class="card-title">' + esc(stage.label) + "</h3></div></div>" +
+          '<p class="card-prop">&nbsp;</p>' +
+          '<div class="missing">Coluna <b>' + esc(stage.property) + "</b> não encontrada na base. " +
+          "Se ela foi renomeada no Notion, ajuste <code>STAGES</code> em <code>src/worker.js</code>.</div>";
+        els.cards.appendChild(card);
+        return;
+      }
+
+      var buckets = paint(stage.breakdown).filter(function (b) { return b.count > 0; });
+      var head =
+        '<div class="card-head">' +
+          '<div class="card-name">' +
+            '<span class="step-no">' + (index + 1) + "</span>" +
+            '<h3 class="card-title">' + esc(stage.label) + "</h3>" +
+          "</div>" +
+          '<div class="card-value">' + pct(stage.pct) +
+            " <small>" + stage.done + "/" + stage.applicable + "</small></div>" +
+        "</div>" +
+        '<p class="card-prop">' + esc(stage.propertyName) + "</p>";
+
+      var bar = document.createElement("div");
+      bar.className = "bar";
+      bar.setAttribute("role", "img");
+      bar.setAttribute("aria-label",
+        stage.label + ": " + buckets.map(function (b) { return b.count + " " + b.label; }).join(", "));
+
+      buckets.forEach(function (bucket) {
+        var seg = document.createElement("div");
+        seg.className = "seg";
+        seg.style.width = (bucket.pct * 100) + "%";
+        seg.style.background = bucket.color;
+        seg.tabIndex = 0;
+        seg.addEventListener("mouseenter", function (e) { showTip(e, bucket, stage.total); });
+        seg.addEventListener("focus", function (e) { showTip(e, bucket, stage.total); });
+        seg.addEventListener("mouseleave", hideTip);
+        seg.addEventListener("blur", hideTip);
+        bar.appendChild(seg);
+      });
+
+      var legend = document.createElement("div");
+      legend.className = "legend";
+      legend.innerHTML = buckets.map(function (bucket) {
+        return '<span class="lg" title="' + esc(bucket.label) + " — " + KIND_WORD[bucket.kind] + '">' +
+          '<span class="sw" style="background:' + bucket.color + '"></span>' +
+          (ICONS[bucket.kind] || "") +
+          esc(bucket.label) + " <b>" + bucket.count + "</b>" +
+          '<span class="pc">(' + pct(bucket.pct) + ")</span></span>";
+      }).join("");
+
+      card.innerHTML = head;
+      card.appendChild(bar);
+      card.appendChild(legend);
+      els.cards.appendChild(card);
+    });
+  }
+
+  function renderFunnel(data) {
+    els.funnel.innerHTML = data.stages.map(function (stage, index) {
+      var width = stage.pct === null || stage.pct === undefined ? 0 : stage.pct * 100;
+      var value = stage.propertyFound
+        ? "<b>" + stage.done + "</b> / " + stage.applicable + " · " + pct(stage.pct)
+        : "sem dados";
+      return '<div class="frow">' +
+        '<div class="fhead"><span class="fname">' + (index + 1) + ". " + esc(stage.label) + "</span>" +
+        '<span class="fval">' + value + "</span></div>" +
+        '<div class="ftrack"><div class="ffill" style="width:' + width + '%"></div></div>' +
+        "</div>";
+    }).join("");
+  }
+
+  function renderTable(data) {
+    var labels = [];
+    data.stages.forEach(function (stage) {
+      stage.breakdown.forEach(function (bucket) {
+        if (bucket.count > 0 && labels.indexOf(bucket.label) === -1) labels.push(bucket.label);
+      });
+    });
+
+    var head = "<thead><tr><th>Etapa</th><th>Coluna no Notion</th>" +
+      labels.map(function (l) { return "<th>" + esc(l) + "</th>"; }).join("") +
+      "<th>Concluído</th></tr></thead>";
+
+    var body = "<tbody>" + data.stages.map(function (stage, index) {
+      var cells = labels.map(function (label) {
+        var found = null;
+        stage.breakdown.forEach(function (b) { if (b.label === label) found = b; });
+        return "<td>" + (found && found.count ? found.count : "—") + "</td>";
+      }).join("");
+      return "<tr><td>" + (index + 1) + ". " + esc(stage.label) + "</td>" +
+        "<td>" + esc(stage.propertyName || stage.property) + "</td>" + cells +
+        "<td>" + (stage.propertyFound ? stage.done + "/" + stage.applicable + " (" + pct(stage.pct) + ")" : "—") + "</td></tr>";
+    }).join("") + "</tbody>";
+
+    els.table.innerHTML = head + body;
+  }
+
+  function renderHero(data) {
+    els.hero.innerHTML = (data.overall.pct === null ? "—" : Math.round(data.overall.pct * 100)) + "<span>%</span>";
+    els.heroMeter.style.width = (data.overall.pct ? data.overall.pct * 100 : 0) + "%";
+    els.heroNote.textContent =
+      "Média das 6 etapas. Quem está como \u201cNão precisa\u201d fica fora da conta.";
+
+    var found = data.stages.filter(function (s) { return s.propertyFound; });
+
+    // Gargalo = a etapa com a maior queda de concluidos em relacao a anterior.
+    var worst = null;
+    for (var i = 1; i < found.length; i += 1) {
+      var drop = found[i - 1].done - found[i].done;
+      if (!worst || drop > worst.drop) worst = { stage: found[i], drop: drop };
+    }
+
+    els.heroStats.innerHTML =
+      '<div class="stat"><b>' + data.totalCandidates + "</b><small>candidatos na base</small></div>" +
+      '<div class="stat"><b>' + data.overall.done + " <span style=\"font-weight:500;color:var(--muted)\">/ " +
+        data.overall.applicable + "</span></b><small>marcações concluídas</small></div>" +
+      (worst && worst.drop > 0
+        ? '<div class="stat is-text" title="' + esc(worst.stage.label) + '"><b>' + esc(worst.stage.label) +
+          "</b><small>maior gargalo (−" + worst.drop + " candidatos)</small></div>"
+        : '<div class="stat"><b>' + found.length + "</b><small>etapas monitoradas</small></div>");
+  }
+
+  function renderFreshness() {
+    if (!lastOkAt) return;
+    var age = Date.now() - lastOkAt;
+    var seconds = Math.round(age / 1000);
+    var text = seconds < 60
+      ? "atualizado há " + seconds + "s"
+      : "atualizado há " + Math.round(seconds / 60) + " min";
+    els.fresh.textContent = text;
+    els.dot.className = "dot " + (age > STALE_MS ? "stale" : "live");
+  }
+
+  function showBanner(message, hint) {
+    els.banner.innerHTML =
+      '<div class="banner"><b>Não consegui ler o Notion agora</b>' + esc(message) +
+      (hint ? "<br />" + esc(hint) : "") +
+      (lastData ? "<br />Mostrando os últimos dados que carregaram." : "") + "</div>";
+    els.dot.className = "dot error";
+    els.fresh.textContent = lastOkAt ? "dados desatualizados" : "sem dados";
+  }
+
+  /* ------------------------------------------------------------- carregar */
+
+  function load() {
+    els.app.classList.add("loading");
+
+    fetch("/api/stats", { headers: { accept: "application/json" }, cache: "no-store" })
+      .then(function (response) { return response.json().catch(function () { return { ok: false, error: "Resposta inválida do servidor." }; }); })
+      .then(function (data) {
+        if (!data || !data.ok) {
+          showBanner((data && data.error) || "Erro desconhecido.", data && data.hint);
+          return;
+        }
+        lastData = data;
+        lastOkAt = Date.now();
+        els.banner.innerHTML = "";
+
+        if (data.title) { els.brand.textContent = data.title; document.title = data.title + " · " + (data.subtitle || ""); }
+        if (data.subtitle) els.brandSub.textContent = data.subtitle;
+        els.footRight.innerHTML = data.databaseUrl
+          ? '<a href="' + esc(data.databaseUrl) + '" target="_blank" rel="noopener">Abrir a base no Notion</a>'
+          : "";
+
+        renderHero(data);
+        renderCards(data);
+        renderFunnel(data);
+        renderTable(data);
+        renderFreshness();
+      })
+      .catch(function (error) { showBanner(String(error && error.message ? error.message : error)); })
+      .finally(function () { els.app.classList.remove("loading"); });
+  }
+
+  function schedule() {
+    if (timer) clearInterval(timer);
+    timer = setInterval(function () {
+      if (document.visibilityState === "visible") load();
+    }, REFRESH_MS);
+  }
+
+  els.refresh.addEventListener("click", load);
+  document.addEventListener("visibilitychange", function () {
+    if (document.visibilityState === "visible" && Date.now() - lastOkAt > 15000) load();
+  });
+  window.addEventListener("scroll", hideTip, { passive: true });
+  setInterval(renderFreshness, 1000);
+
+  load();
+  schedule();
+})();
+</script>
+</body>
+</html>

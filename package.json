@@ -1,0 +1,16 @@
+{
+  "name": "missao-bahia-dashboard",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "secret": "wrangler secret put NOTION_TOKEN",
+    "test": "node test/aggregate.test.mjs && node test/worker.test.mjs"
+  },
+  "devDependencies": {
+    "playwright": "^1.62.1",
+    "wrangler": "^4.0.0"
+  },
+  "type": "module"
+}

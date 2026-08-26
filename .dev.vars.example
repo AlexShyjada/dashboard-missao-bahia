@@ -1,0 +1,3 @@
+# Copie para .dev.vars (que fica fora do git) para rodar "npx wrangler dev" local.
+# Em producao o token entra como secret: npx wrangler secret put NOTION_TOKEN
+NOTION_TOKEN=ntn_cole_o_token_da_sua_integracao_aqui
