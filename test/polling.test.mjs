@@ -1,6 +1,6 @@
 /**
  * Verifica a cadência de varredura na página real, com relógio controlado:
- * ativo = 30s, ocioso = 3min, e volta ao ritmo ativo no primeiro toque.
+ * intervalo único de 5 min, ativo ou ocioso, sem busca antecipada ao voltar.
  */
 import { chromium } from "playwright";
 import assert from "node:assert/strict";
@@ -28,39 +28,46 @@ await page.goto("file://" + fs.realpathSync("public/index.html"));
 await page.waitForSelector(".card");
 assert.equal(hits.length, 1, "deveria buscar uma vez ao abrir");
 
-// Fase ativa: um toque a cada 20s mantém a página "em uso".
+// Mesmo com toques constantes, a cadência não acelera: continua em 5 min.
 hits = [];
 for (let i = 0; i < 6; i += 1) {
   await page.clock.runFor(20000);
   await page.mouse.move(300 + i, 300);
   await page.waitForTimeout(60);
 }
-assert.ok(hits.length >= 3 && hits.length <= 5,
-  `ativo por 2 min deveria render ~4 varreduras, deu ${hits.length}`);
+assert.equal(hits.length, 0, `2 min de uso ativo não deveria buscar de novo, deu ${hits.length}`);
 
-// Entra em ócio (5 min sem toque) e depois mede o regime permanente.
-await page.clock.runFor(6 * 60 * 1000);
+await page.clock.runFor(3 * 60 * 1000);
 await page.waitForTimeout(150);
-hits = [];
-await page.clock.runFor(30 * 60 * 1000);
-await page.waitForTimeout(200);
-assert.ok(hits.length <= 12,
-  `30 min de aba esquecida deveria render ~10 varreduras, deu ${hits.length}`);
-assert.ok(hits.length >= 6, `mesmo ocioso precisa continuar varrendo, deu ${hits.length}`);
-console.log("  aba esquecida: " + hits.length + " varreduras em 30 min (~" +
-  Math.round(hits.length * 2 * 24 * 30) + " invocações/mês se ficar 24h por dia)");
+assert.equal(hits.length, 1, `aos 5 min deveria disparar exatamente uma busca, deu ${hits.length}`);
 
-// O indicador avisa que está em espera.
+// Regime permanente, aba esquecida (sem nenhum toque) por 1h: 5 min fixos.
+hits = [];
+await page.clock.runFor(60 * 60 * 1000);
+await page.waitForTimeout(200);
+assert.ok(hits.length >= 11 && hits.length <= 12, `1h de aba esquecida deveria render ~12 varreduras (a cada 5 min), deu ${hits.length}`);
+console.log("  aba esquecida: " + hits.length + " varreduras em 1h (~" +
+  Math.round(hits.length * 24 * 30) + " invocações/mês se ficar 24h por dia)");
+
+// O indicador avisa que está em espera (rótulo, não muda a cadência).
 assert.match(await page.textContent("#freshness"), /em espera/);
 
-// Primeiro toque tira do modo ocioso e busca na hora.
+// Voltar da aba não adianta a busca: o dado ainda está fresco (< 5 min).
+// Usa o teclado em vez de um clique em coordenada fixa — os cards de etapa
+// agora abrem modal ao clicar, e uma coordenada arbitrária pode cair em um.
 hits = [];
-await page.mouse.click(400, 400);
+await page.keyboard.press("Shift");
 await page.waitForTimeout(200);
-assert.equal(hits.length, 1, "o toque depois do ócio deveria disparar uma busca imediata");
+assert.equal(hits.length, 0, "o toque não deveria disparar busca com dado ainda fresco");
+await page.clock.runFor(1000); // deixa o relógio (mockado) rodar o setInterval do rótulo
 assert.doesNotMatch(await page.textContent("#freshness"), /em espera/);
 
-// O botão Atualizar fura o cache do CDN.
+// Só busca de novo quando o dado realmente completar 5 min.
+await page.clock.runFor(5 * 60 * 1000);
+await page.waitForTimeout(150);
+assert.equal(hits.length, 1, "deveria buscar assim que os 5 min completarem, mesmo sem toque");
+
+// O botão Atualizar fura o cache do CDN e independe do intervalo de fundo.
 hits = [];
 await page.click("#refresh");
 await page.waitForTimeout(200);
@@ -79,4 +86,4 @@ assert.equal(await page.getAttribute("#refresh", "disabled"), null,
 assert.equal(await page.textContent("#refresh"), "Atualizar");
 
 await browser.close();
-console.log("cadência: ativo 30s, ocioso 3min, retomada no toque e cooldown do botão — ok");
+console.log("cadência: intervalo fixo de 5 min, ativo ou ocioso, sem busca antecipada e cooldown do botão — ok");

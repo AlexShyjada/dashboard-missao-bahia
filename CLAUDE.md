@@ -159,20 +159,30 @@ resultado possível. Três mecanismos seguram a conta:
    buscou: dez pessoas custam como uma. `Netlify-Vary: query=fresh` separa a
    entrada do `?fresh=1`.
 2. A varredura para com a aba escondida (`visibilityState`).
-3. Desaceleração por ociosidade: 30s com alguém mexendo, 3 min depois de
-   5 min sem toque. O primeiro clique ou tecla retoma e busca na hora.
+3. Intervalo único de 5 min (`POLL_MS`), ativo ou ocioso — a pedido do
+   usuário em 26/08/2026, no lugar do esquema anterior de 30s ativo / 3 min
+   ocioso. Voltar de uma aba escondida ou tocar a página depois de ociosa
+   *não* adianta a busca; só dispara se o dado já tiver de fato passado dos
+   5 min (`Date.now() - lastOkAt >= POLL_MS`). `IDLE_AFTER_MS` continua
+   existindo só para o rótulo "em espera" no indicador — não afeta a
+   cadência de busca.
 
-Orçamento medido: aba esquecida 24h/dia ≈ 14 mil/mês; equipe usando 8h/dia
-útil ≈ 40 mil/mês. `test/polling.test.mjs` mede isso com relógio controlado,
-para a conta não virar suposição.
+Orçamento medido: aba esquecida 24h/dia ≈ 8,6 mil/mês (`test/polling.test.mjs`
+mede isso com relógio controlado — 12 varreduras/hora, para a conta não virar
+suposição). Uma pessoa usando a página ativamente 8h úteis/dia fica em ≈ 96
+buscas/dia (≈ 2,9 mil/mês); multiplique pelo tamanho real da equipe para o
+teto — mesmo várias pessoas juntas, o intervalo fixo de 5 min mantém a conta
+bem abaixo do limite de 125 mil.
 
-**Antes de mexer em `ACTIVE_MS`, `IDLE_MS`, `IDLE_AFTER_MS` (todos em
+**Antes de mexer em `POLL_MS`, `IDLE_AFTER_MS` (ambos em
 `public/index.html`) ou `EDGE_TTL_SECONDS`, refaça a conta.**
 
 ### Não é tempo real, é pull
 
-Atraso máximo de ~50s em uso ativo. O botão Atualizar manda `?fresh=1`, pula o
-cache e lê o Notion em 1-2s, com 5s de cooldown por usuário.
+Atraso máximo de 5 min em qualquer regime (ativo ou ocioso) — intervalo fixo,
+não varia mais com o uso. O botão Atualizar manda `?fresh=1`, pula o cache e
+lê o Notion em 1-2s, com 5s de cooldown por usuário, para quem não quer
+esperar o ciclo.
 
 Webhook do Notion não ajudaria — já foi investigado. O evento
 `page.properties_updated` é agregado e a Notion promete entrega "em até 5
@@ -247,12 +257,35 @@ Segue a metodologia da skill `dataviz`. O que não é óbvio:
   pontas.
 - Tema claro e escuro, ambos escolhidos passo a passo, não invertidos.
 - Sem dependência externa: uma página, um arquivo, nada de CDN.
+- **Skeleton na primeira carga** (`renderSkeleton()`): só entra quando ainda
+  não existe `lastData` — nas buscas de fundo seguintes (a cada 5 min, ver
+  "O limite da Netlify") o conteúdo antigo permanece na tela, só com opacidade
+  reduzida via `.loading`, para não piscar/re-fluir a cada ciclo. Blocos
+  cinza (`.skel`, animação `shimmer`, respeita `prefers-reduced-motion`) no
+  formato de cada elemento real (hero, cards, gráfico, lista de pendência).
 
 Três blocos de visualização, todos em `public/index.html`:
 
 - **Cards por etapa** (`renderCards` / `.card`): barra empilhada por status
   (`done`/`partial`/`pending`/`na`/`empty`), cor categórica de status — o
-  detalhamento por etapa.
+  detalhamento por etapa. Cada card é clicável e abre `#stage-modal`
+  (`openStageModal`) com a lista de quem está pendente *naquela* etapa
+  (`candidatesForStage`, mesma fonte de "Candidatos com pendência", filtrada
+  pela `stage.key`). Ordenação própria desse modal (`sortStageRows`), diferente
+  da lista geral: quem está mais longe de terminar vem primeiro (`pending`
+  antes de `partial`/aguardando assinatura) e, dentro do mesmo status,
+  alfabética (`localeCompare` com `"pt-BR"`) — pedido do usuário em
+  26/08/2026, para ler a lista como um to-do do mais urgente ao quase-pronto,
+  não pela ordem de pendências gerais do candidato. O botão **PNG** no
+  cabeçalho do modal (`buildStagePendingCanvas`) desenha num `<canvas>` a
+  mesma lista já ordenada, mais o percentual e a barra de progresso da etapa,
+  e baixa como imagem — pensado para quem precisa levar a lista pronta para
+  uma reunião ou grupo, sem print de tela. Sem lib de captura (`html2canvas`
+  etc.): desenha diretamente, lendo as cores do tema atual via
+  `getComputedStyle` (senão o PNG destoa se alguém trocar de tema depois de
+  gerado). Avatar no PNG é sempre iniciais, nunca a foto — evitaria uma
+  requisição cross-origin (CORS) num export que deve funcionar offline depois
+  de baixado.
 - **Comparação entre etapas** (`renderChart` / `.chart`): um gráfico de
   barras horizontais, uma por etapa, todas na mesma cor (`--accent`) porque é
   uma única medida (% concluído) comparada entre categorias — não uma
@@ -322,6 +355,12 @@ Pendências abertas, em ordem:
    `middle.photoUrl` é o único teste hoje que toca
    nesses campos. Antes de considerar a feature pronta, cobrir `photos`
    (múltiplas fotos, ordem) e `notionUrl` no teste de agregação.
+4. **`#stage-modal` (ordenação por status/nome e export PNG) não tem teste
+   automatizado.** É lógica só de front-end (`sortStageRows`,
+   `buildStagePendingCanvas` em `public/index.html`), fora do que
+   `aggregate.test.mjs` cobre (agregação) e do que `shot.mjs` verifica hoje
+   (não abre nenhum card). Se for cobrir, é `shot.mjs` ou um teste novo de
+   Playwright que clica um card e confere a ordem da lista renderizada.
 
 ## Snapshot dos dados (26/08/2026, 21 candidatos)
 

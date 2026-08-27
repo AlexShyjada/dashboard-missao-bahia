@@ -328,6 +328,14 @@
   }
   .stage-modal-title { font-size: 15.5px; font-weight: 640; margin: 0; letter-spacing: -0.01em; }
   .stage-modal-count { font-size: 12.5px; color: var(--muted); margin: 2px 0 0; }
+  .stage-modal-actions { display: flex; align-items: center; gap: 8px; flex: none; }
+  .stage-modal-download {
+    font: inherit; font-size: 12.5px; color: var(--ink); cursor: pointer;
+    background: var(--surface-1); border: 1px solid var(--border);
+    border-radius: 999px; padding: 0 13px; height: 30px;
+    display: flex; align-items: center; gap: 6px; flex: none;
+  }
+  .stage-modal-download:hover { background: var(--track); }
   .stage-modal-close {
     width: 30px; height: 30px; border-radius: 50%; border: 1px solid var(--border);
     background: var(--surface-1); color: var(--ink); font-size: 14px;
@@ -353,6 +361,13 @@
   /* --------------------------------------------------------------- estados */
   #app.loading { opacity: 0.45; }
   #app { transition: opacity .2s ease; }
+  .skel {
+    background: linear-gradient(90deg, var(--track) 25%, var(--border) 37%, var(--track) 63%);
+    background-size: 400% 100%; animation: shimmer 1.6s ease-in-out infinite;
+    border-radius: 5px;
+  }
+  @keyframes shimmer { 0% { background-position: -120% 0; } 100% { background-position: 220% 0; } }
+  @media (prefers-reduced-motion: reduce) { .skel { animation: none; } }
   .banner {
     background: var(--surface-1); border: 1px solid var(--border);
     border-left: 3px solid #d03b3b; border-radius: 10px;
@@ -453,7 +468,13 @@
         <h3 class="stage-modal-title" id="stage-modal-title"></h3>
         <p class="stage-modal-count" id="stage-modal-count"></p>
       </div>
-      <button type="button" class="stage-modal-close" data-stage-close aria-label="Fechar">✕</button>
+      <div class="stage-modal-actions">
+        <button type="button" class="stage-modal-download" id="stage-modal-download" aria-label="Baixar lista de pendentes como PNG">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 2v8m0 0l-3-3m3 3l3-3M3 13h10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          PNG
+        </button>
+        <button type="button" class="stage-modal-close" data-stage-close aria-label="Fechar">✕</button>
+      </div>
     </div>
     <div class="stage-modal-body" id="stage-modal-body"></div>
   </div>
@@ -463,10 +484,12 @@
 (function () {
   "use strict";
 
-  var ACTIVE_MS = 30000;      // varredura com alguem mexendo na pagina
-  var IDLE_MS = 180000;       // varredura quando a aba fica esquecida aberta
-  var IDLE_AFTER_MS = 300000; // 5 min sem interacao = aba esquecida
-  var STALE_MS = 300000;      // acima disso o ponto fica ambar
+  // Intervalo único de varredura: nunca busca mais de uma vez a cada 5 min,
+  // esteja a aba ativa ou ociosa (pedido do usuário em 26/08/2026, veio no
+  // lugar do esquema anterior de 30s ativo / 3min ocioso).
+  var POLL_MS = 300000;
+  var IDLE_AFTER_MS = 300000; // 5 min sem interacao = aba "em espera" (só o rótulo; a cadência não muda)
+  var STALE_MS = 600000;      // 2 ciclos perdidos (10 min) = ponto fica âmbar; 1 ciclo sozinho ainda é normal
   var MANUAL_COOLDOWN_MS = 5000;
 
   var els = {
@@ -495,7 +518,8 @@
     stageModal: document.getElementById("stage-modal"),
     stageModalTitle: document.getElementById("stage-modal-title"),
     stageModalCount: document.getElementById("stage-modal-count"),
-    stageModalBody: document.getElementById("stage-modal-body")
+    stageModalBody: document.getElementById("stage-modal-body"),
+    stageModalDownload: document.getElementById("stage-modal-download")
   };
 
   var lastData = null;
@@ -507,7 +531,6 @@
   // esquecida aberta num monitor consumiria isso sozinha, entao a varredura
   // desacelera quando ninguem esta mexendo e volta ao normal no primeiro toque.
   function isIdle() { return Date.now() - lastInteractionAt > IDLE_AFTER_MS; }
-  function currentInterval() { return isIdle() ? IDLE_MS : ACTIVE_MS; }
 
   /* ------------------------------------------------------------- helpers */
 
@@ -954,8 +977,22 @@
     });
   }
 
+  var stageModalState = { stage: null, rows: [] };
+
+  // Quem está mais longe de terminar vem primeiro (pendente antes de pronto-
+  // aguardando-assinatura); dentro do mesmo status, ordem alfabética pelo nome.
+  function sortStageRows(rows) {
+    return rows.slice().sort(function (a, b) {
+      var ra = a.entry.status === "partial" ? 1 : 0;
+      var rb = b.entry.status === "partial" ? 1 : 0;
+      if (ra !== rb) return ra - rb;
+      return String(a.candidate.name || "").localeCompare(String(b.candidate.name || ""), "pt-BR", { sensitivity: "base" });
+    });
+  }
+
   function openStageModal(stage) {
-    var rows = candidatesForStage(stage.key);
+    var rows = sortStageRows(candidatesForStage(stage.key));
+    stageModalState = { stage: stage, rows: rows };
     els.stageModalTitle.textContent = stage.label;
     els.stageModalCount.textContent = rows.length
       ? rows.length + (rows.length === 1 ? " candidato pendente" : " candidatos pendentes")
@@ -973,6 +1010,283 @@
   els.stageModal.querySelectorAll("[data-stage-close]").forEach(function (elm) {
     elm.addEventListener("click", closeStageModal);
   });
+
+  /* ------------------------------------------------------- PNG da etapa */
+
+  // Lê a cor já resolvida pelo tema atual (claro/escuro) em vez de duplicar
+  // a paleta aqui — o canvas some da tela se o usuário trocar de tema depois.
+  function cssVar(name) {
+    return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  }
+
+  function roundRectPath(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+
+  function truncateToWidth(ctx, text, maxWidth) {
+    if (ctx.measureText(text).width <= maxWidth) return text;
+    var cut = text;
+    while (cut.length > 1 && ctx.measureText(cut + "…").width > maxWidth) {
+      cut = cut.slice(0, -1);
+    }
+    return cut + "…";
+  }
+
+  function formatTimestamp(date) {
+    var pad = function (n) { return String(n).padStart(2, "0"); };
+    return pad(date.getDate()) + "/" + pad(date.getMonth() + 1) + "/" + date.getFullYear() +
+      " " + pad(date.getHours()) + ":" + pad(date.getMinutes());
+  }
+
+  // Desenha a mesma lista de pendentes do modal, num PNG autônomo: título da
+  // etapa, percentual concluído e uma linha por candidato (nome, WhatsApp
+  // quando existe, e a etiqueta de status) — nada que já não esteja na tela.
+  function buildStagePendingCanvas(stage, rows) {
+    var width = 680;
+    var padX = 28;
+    var rowH = 58;
+    var headerH = 234;
+    var footerH = 46;
+    var bodyH = rows.length ? rows.length * rowH : 64;
+    var height = headerH + bodyH + footerH;
+
+    var dpr = window.devicePixelRatio || 1;
+    var canvas = document.createElement("canvas");
+    canvas.width = Math.round(width * dpr);
+    canvas.height = Math.round(height * dpr);
+    var ctx = canvas.getContext("2d");
+    ctx.scale(dpr, dpr);
+
+    var FONT = "system-ui, -apple-system, \"Segoe UI\", sans-serif";
+    var surface = cssVar("--surface-1");
+    var border = cssVar("--border");
+    var ink = cssVar("--ink");
+    var ink2 = cssVar("--ink-2");
+    var muted = cssVar("--muted");
+    var track = cssVar("--track");
+    var accent = cssVar("--accent");
+    var kindColor = { partial: cssVar("--st-partial"), pending: cssVar("--st-pending") };
+
+    roundRectPath(ctx, 0.5, 0.5, width - 1, height - 1, 14);
+    ctx.fillStyle = surface;
+    ctx.fill();
+    ctx.strokeStyle = border;
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    var contentW = width - padX * 2;
+    var x = padX;
+
+    ctx.textBaseline = "alphabetic";
+    var eyebrow = ((lastData && lastData.title) || "Missão Bahia") +
+      ((lastData && lastData.subtitle) ? " · " + lastData.subtitle : "");
+    ctx.fillStyle = muted;
+    ctx.font = "700 11px " + FONT;
+    ctx.fillText(truncateToWidth(ctx, eyebrow.toUpperCase(), contentW), x, 34);
+
+    ctx.fillStyle = ink;
+    ctx.font = "700 22px " + FONT;
+    ctx.fillText(truncateToWidth(ctx, stage.label || "", contentW), x, 66);
+
+    ctx.fillStyle = muted;
+    ctx.font = "400 13px " + FONT;
+    ctx.fillText(truncateToWidth(ctx, stage.propertyName || "", contentW), x, 88);
+
+    // Percentual, em destaque — é o número que o usuário pediu para levar.
+    var pctText = pct(stage.pct);
+    ctx.font = "700 30px " + FONT;
+    ctx.fillStyle = accent;
+    ctx.fillText(pctText, x, 138);
+    var pctWidth = ctx.measureText(pctText).width;
+
+    ctx.font = "500 14px " + FONT;
+    ctx.fillStyle = ink2;
+    var labelX = x + pctWidth + 10;
+    ctx.fillText("concluído", labelX, 133);
+    labelX += ctx.measureText("concluído").width + 10;
+
+    ctx.font = "400 13px " + FONT;
+    ctx.fillStyle = muted;
+    ctx.fillText(stage.done + "/" + stage.applicable + " candidatos", labelX, 133);
+
+    // Barra de progresso, mesma linguagem visual da barra de topo da página.
+    var barY = 156, barH = 10;
+    roundRectPath(ctx, x, barY, contentW, barH, barH / 2);
+    ctx.fillStyle = track;
+    ctx.fill();
+    var fill = stage.pct ? Math.max(0, Math.min(1, stage.pct)) * contentW : 0;
+    if (fill > 0) {
+      roundRectPath(ctx, x, barY, Math.max(barH, fill), barH, barH / 2);
+      ctx.fillStyle = accent;
+      ctx.fill();
+    }
+
+    ctx.strokeStyle = border;
+    ctx.beginPath();
+    ctx.moveTo(x, 196.5);
+    ctx.lineTo(width - padX, 196.5);
+    ctx.stroke();
+
+    ctx.font = "600 13px " + FONT;
+    ctx.fillStyle = ink2;
+    var countLabel = rows.length
+      ? rows.length + (rows.length === 1 ? " candidato pendente" : " candidatos pendentes")
+      : "Ninguém pendente nesta etapa";
+    ctx.fillText(countLabel, x, 218);
+
+    if (!rows.length) {
+      ctx.font = "400 13.5px " + FONT;
+      ctx.fillStyle = muted;
+      ctx.fillText("Todo mundo em dia.", x, headerH + 36);
+    }
+
+    rows.forEach(function (row, index) {
+      var rowTop = headerH + index * rowH;
+      var midY = rowTop + rowH / 2;
+
+      if (index > 0) {
+        ctx.strokeStyle = border;
+        ctx.beginPath();
+        ctx.moveTo(x, rowTop + 0.5);
+        ctx.lineTo(width - padX, rowTop + 0.5);
+        ctx.stroke();
+      }
+
+      var kind = row.entry.status === "partial" ? "partial" : "pending";
+      var tagLabel = KIND_WORD[kind];
+      ctx.font = "600 12px " + FONT;
+      var tagTextWidth = ctx.measureText(tagLabel).width;
+      var tagPadX = 10, dotR = 3, dotGap = 7;
+      var tagW = tagPadX * 2 + dotR * 2 + dotGap + tagTextWidth;
+      var tagH = 22;
+      var tagX = width - padX - tagW;
+      var tagY = midY - tagH / 2;
+
+      // Avatar: iniciais, nunca a foto — evita rede/CORS num export estático
+      // e é o mesmo fallback já usado na tela quando a foto expira.
+      var avatarR = 17;
+      var avatarCx = x + avatarR;
+      ctx.beginPath();
+      ctx.arc(avatarCx, midY, avatarR, 0, Math.PI * 2);
+      ctx.fillStyle = track;
+      ctx.fill();
+      ctx.font = "600 12px " + FONT;
+      ctx.fillStyle = ink2;
+      ctx.textAlign = "center";
+      ctx.fillText(initials(row.candidate.name), avatarCx, midY + 4);
+      ctx.textAlign = "left";
+
+      var textX = avatarCx + avatarR + 12;
+      var textMaxW = tagX - 12 - textX;
+
+      ctx.font = "600 14px " + FONT;
+      ctx.fillStyle = ink;
+      ctx.fillText(truncateToWidth(ctx, row.candidate.name || "Sem nome", textMaxW), textX, midY - 3);
+
+      if (row.candidate.whatsapp) {
+        ctx.font = "400 12px " + FONT;
+        ctx.fillStyle = muted;
+        ctx.fillText(truncateToWidth(ctx, row.candidate.whatsapp, textMaxW), textX, midY + 14);
+      }
+
+      roundRectPath(ctx, tagX, tagY, tagW, tagH, tagH / 2);
+      ctx.fillStyle = surface;
+      ctx.fill();
+      ctx.strokeStyle = border;
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(tagX + tagPadX + dotR, midY, dotR, 0, Math.PI * 2);
+      ctx.fillStyle = kindColor[kind] || muted;
+      ctx.fill();
+      ctx.font = "600 12px " + FONT;
+      ctx.fillStyle = ink;
+      ctx.fillText(tagLabel, tagX + tagPadX + dotR * 2 + dotGap, midY + 4);
+    });
+
+    var footTop = headerH + bodyH;
+    ctx.strokeStyle = border;
+    ctx.beginPath();
+    ctx.moveTo(x, footTop + 0.5);
+    ctx.lineTo(width - padX, footTop + 0.5);
+    ctx.stroke();
+
+    ctx.font = "400 11.5px " + FONT;
+    ctx.fillStyle = muted;
+    ctx.fillText("Gerado em " + formatTimestamp(new Date()), x, footTop + 28);
+
+    return canvas;
+  }
+
+  function stageFilename(stage) {
+    var base = String(stage.label || "etapa").normalize("NFD").replace(/[̀-ͯ]/g, "")
+      .replace(/[^a-z0-9]+/gi, "-").toLowerCase().replace(/^-+|-+$/g, "") || "etapa";
+    return base + "-pendentes.png";
+  }
+
+  function downloadStagePng() {
+    if (!stageModalState.stage) return;
+    var canvas = buildStagePendingCanvas(stageModalState.stage, stageModalState.rows);
+    canvas.toBlob(function (blob) {
+      if (!blob) return;
+      var href = URL.createObjectURL(blob);
+      var link = document.createElement("a");
+      link.href = href;
+      link.download = stageFilename(stageModalState.stage);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(function () { URL.revokeObjectURL(href); }, 4000);
+    }, "image/png");
+  }
+
+  els.stageModalDownload.addEventListener("click", downloadStagePng);
+
+  // Bloco cinza animado no lugar de qualquer número/nome ainda não carregado.
+  // Só entra na primeira carga (sem lastData) — nas buscas de fundo seguintes
+  // o conteúdo antigo fica na tela (só com opacidade reduzida via .loading).
+  function repeat(n, fn) {
+    var out = "";
+    for (var i = 0; i < n; i += 1) out += fn(i);
+    return out;
+  }
+
+  function skel(w, h, extra) {
+    return '<span class="skel" style="display:block;width:' + w + ";height:" + h + ";" + (extra || "") + '"></span>';
+  }
+
+  function renderSkeleton() {
+    els.hero.innerHTML = skel("96px", "56px", "border-radius:10px;display:inline-block");
+    els.heroNote.innerHTML = skel("230px", "13px", "margin-top:2px");
+    els.heroMeter.style.width = "0%";
+    els.heroStats.innerHTML = repeat(4, function () {
+      return '<div class="stat">' + skel("52px", "20px", "margin-bottom:6px") + skel("92px", "12px", "") + "</div>";
+    });
+
+    els.cards.innerHTML = repeat(7, function () {
+      return '<section class="card">' +
+        '<div class="card-head">' + skel("160px", "16px", "") + skel("40px", "18px", "") + "</div>" +
+        skel("120px", "11px", "margin:6px 0 14px 20px") +
+        skel("100%", "18px", "border-radius:4px") +
+        '<div class="legend">' + skel("65%", "12px", "margin-top:12px") + "</div>" +
+        "</section>";
+    });
+
+    els.chart.innerHTML = repeat(7, function () {
+      return '<div class="chart-row">' + skel("38%", "12px", "margin-bottom:8px") +
+        skel("100%", "14px", "border-radius:4px") + "</div>";
+    });
+
+    els.pending.innerHTML = repeat(3, function () {
+      return '<div class="prow">' + skel("42px", "42px", "border-radius:50%;flex:none") +
+        '<div class="prow-body">' + skel("55%", "14px", "margin-bottom:6px") + skel("35%", "11px", "") + "</div></div>";
+    });
+  }
 
   function renderHero(data) {
     els.hero.innerHTML = (data.overall.pct === null ? "—" : Math.round(data.overall.pct * 100)) + "<span>%</span>";
@@ -1034,6 +1348,7 @@
   /* ------------------------------------------------------------- carregar */
 
   function load(force) {
+    if (!lastData) renderSkeleton();
     els.app.classList.add("loading");
     var url = force ? "/api/stats?fresh=1" : "/api/stats";
 
@@ -1070,19 +1385,20 @@
   function schedule() {
     if (timer) clearTimeout(timer);
     timer = setTimeout(function () {
-      if (document.visibilityState === "visible" && Date.now() - lastOkAt >= currentInterval() - 1000) {
+      if (document.visibilityState === "visible" && Date.now() - lastOkAt >= POLL_MS - 1000) {
         load();
       } else {
         schedule();
       }
-    }, currentInterval());
+    }, POLL_MS);
   }
 
   function noteInteraction() {
     var wasIdle = isIdle();
     lastInteractionAt = Date.now();
-    // Saiu do modo ocioso com dado velho: busca na hora em vez de esperar.
-    if (wasIdle && Date.now() - lastOkAt > ACTIVE_MS) load();
+    // Sair do modo "em espera" não adianta a busca — o intervalo de 5 min é
+    // fixo; só readapta se o dado já estiver vencido pelo próprio ciclo.
+    if (wasIdle && Date.now() - lastOkAt >= POLL_MS) load();
   }
 
   // O clique manual pula o cache de borda; o cooldown evita que a equipe
@@ -1100,7 +1416,8 @@
   document.addEventListener("visibilitychange", function () {
     if (document.visibilityState !== "visible") return;
     noteInteraction();
-    if (Date.now() - lastOkAt > 10000) load();
+    // Só busca ao voltar se o dado já passou dos 5 min — nunca antes disso.
+    if (Date.now() - lastOkAt >= POLL_MS) load();
   });
   ["pointerdown", "keydown", "wheel", "touchstart"].forEach(function (evt) {
     window.addEventListener(evt, noteInteraction, { passive: true });
