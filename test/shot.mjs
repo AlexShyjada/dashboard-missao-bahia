@@ -8,6 +8,7 @@ const opts = (n) => ({ type: "status", status: { options: n.map((name) => ({ nam
 const schema = {
   "Nome": { type: "title", title: {} },
   "WhatsApp": { type: "phone_number", phone_number: {} },
+  "Foto": { type: "files" },
   "Já ligou?": opts(["Não", "Sim"]),
   "Aceitou Fundão?": opts(["Sim", "Não"]),
   "Já fez a procuração Advogado?": opts(["Pendente", "Feito", "Assinado"]),
@@ -23,6 +24,10 @@ const dist = (col, mapa) => {
   Object.entries(mapa).forEach(([valor, n]) => { for (let i = 0; i < n; i += 1) out.push(valor); });
   return out;
 };
+// Data URI (1x1 px) em vez de URL externa — o teste não deve depender de rede.
+const PHOTO_STUB = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=";
+const fotoDist = dist(0, { "Feito": 16, "Pendente": 5 });
+
 const cols = {
   "Já ligou?": dist(0, { "Sim": 8, "Não": 13 }),
   "Aceitou Fundão?": dist(0, { "Sim": 17, "Não": 3, "__vazio": 1 }),
@@ -48,6 +53,7 @@ const rows = Array.from({ length: 21 }, (_, i) => ({
   properties: {
     "Nome": { type: "title", title: [{ plain_text: NAMES[i] }] },
     "WhatsApp": { type: "phone_number", phone_number: "+55 71 9" + (1000 + i) + "-" + (2000 + i) },
+    "Foto": { type: "files", files: fotoDist[i] === "Feito" ? [{ type: "external", external: { url: PHOTO_STUB } }] : [] },
     ...Object.fromEntries(Object.keys(cols).map((k) => {
       const v = cols[k][i];
       return [k, { type: "status", status: !v || v === "__vazio" ? null : { name: v } }];

@@ -100,13 +100,23 @@ Revisada com o usuário em 26/08/2026, coluna por coluna:
 | # | Coluna | Não iniciado | Intermediário | Concluído | Fora da conta |
 |---|---|---|---|---|---|
 | 1 | `Já ligou?` | Não | — | **Sim** | — |
-| 2 | `Já mandou o requerimento de abertura de conta?` | Não / vazio | — | **Sim** | — |
-| 3 | `Já fez a procuração Advogado?` | Pendente | Feito | **Assinado** | — |
-| 4 | `Já foi feito o Material?` | Pendente | — | **Feito** | — |
-| 5 | `Confecionado na gráfica?` | Pendente | — | **Feito** | — |
-| 6 | `Já foi Pago?` | Pendente | — | **Feito** | — |
-| 7 | `Certificado de doação (Homens)` | Pendente | Feito | **Assinado** | Não precisa |
+| 2 | `Foto` | Pendente | — | **Feito** | — |
+| 3 | `Já mandou o requerimento de abertura de conta?` | Não / vazio | — | **Sim** | — |
+| 4 | `Já fez a procuração Advogado?` | Pendente | Feito | **Assinado** | — |
+| 5 | `Já foi feito o Material?` | Pendente | — | **Feito** | — |
+| 6 | `Confecionado na gráfica?` | Pendente | — | **Feito** | — |
+| 7 | `Já foi Pago?` | Pendente | — | **Feito** | — |
+| 8 | `Certificado de doação (Homens)` | Pendente | Feito | **Assinado** | Não precisa |
 | — | `Aceitou Fundão?` | — | — | — | a etapa inteira |
+
+`Foto` (item 2) é a mesma coluna "Files & media" usada em `CANDIDATE_FIELDS.photo`
+para a seção de pendência — a etapa só conta se a foto foi enviada ou não,
+nunca expõe a imagem em si (isso já é privilégio exclusivo de "Candidatos com
+pendência", ver "Privacidade"). Sem degrau de assinatura, então `Feito`
+já fecha a etapa, igual a `Já foi Pago?`. Adicionada a pedido do usuário em
+27/08/2026, logo depois de "Ligações de Rafael" — `STAGES` em `src/notion.js`
+define a posição; o card em `public/index.html` segue a mesma ordem
+automaticamente (`orderedStages()` não tem lista própria).
 
 ### O degrau de assinatura
 
@@ -146,7 +156,7 @@ equipe faz.
 - A ordem dos segmentos é sempre `done → partial → pending → empty → na`,
   ignorando a ordem das opções no Notion, que varia por coluna. Sem isso o
   verde abria à esquerda num card e à direita no outro, e ficava impossível
-  comparar as seis barras de relance.
+  comparar as oito barras de relance.
 
 ## O limite da Netlify — restrição de projeto, não detalhe
 
@@ -321,9 +331,11 @@ npm test
 - `aggregate.test.mjs` — o degrau de assinatura, a ordem fixa das barras, o
   Fundão fora da conta, "Não precisa" fora do denominador, células vazias, o
   casamento do nome da coluna com o typo corrigido, leitura de checkbox /
-  files / select, e a lista de pendência por candidato (quem some da lista ao
+  files / select, a etapa `foto` (coluna Files & media, sem degrau de
+  assinatura), e a lista de pendência por candidato (quem some da lista ao
   terminar tudo, ordenação por quantidade de pendência, `partial` vs.
-  `pending`, e que o Fundão nunca vira pendência mesmo com "Não").
+  `pending`, que o Fundão nunca vira pendência mesmo com "Não", `photos` em
+  ordem e `notionUrl`).
 - `handlers.test.mjs` — os dois adaptadores contra uma API do Notion
   simulada: paginação de 150 candidatos, cabeçalhos de cache, `?fresh=1`, e os
   erros prováveis (sem token, base sem acesso).
@@ -342,20 +354,15 @@ variável `NOTION_TOKEN` (marcada como Secret, scope Functions).
 
 Pendências abertas, em ordem:
 
-1. **Decidir o fluxo das mulheres na etapa 6.** A base tem
+1. **Decidir o fluxo das mulheres na etapa 7 (Pagamento).** A base tem
    `Nota fiscal (mulheres)` e `Comprovante de pagamento (Mulheres)` como
-   colunas separadas. Hoje a etapa 6 lê só a coluna dos homens e as 7 mulheres
-   saem como "Não precisa". Se a prestação de contas delas também precisa ser
-   acompanhada, a etapa 6 tem que ler duas colunas. Pergunta feita ao usuário,
-   sem resposta.
+   colunas separadas. Hoje essa etapa lê só a coluna dos homens e as 7
+   mulheres saem como "Não precisa". Se a prestação de contas delas também
+   precisa ser acompanhada, a etapa tem que ler duas colunas. Pergunta feita
+   ao usuário, sem resposta.
 2. Se o link for exposto demais, fechar com Netlify Identity ou Cloudflare
    Access.
-3. **Modal de foto (carrossel + download) e link do nome para o Notion já
-   estão commitados, mas ainda sem cobertura em `aggregate.test.mjs`.**
-   `middle.photoUrl` é o único teste hoje que toca
-   nesses campos. Antes de considerar a feature pronta, cobrir `photos`
-   (múltiplas fotos, ordem) e `notionUrl` no teste de agregação.
-4. **`#stage-modal` (ordenação por status/nome e export PNG) não tem teste
+3. **`#stage-modal` (ordenação por status/nome e export PNG) não tem teste
    automatizado.** É lógica só de front-end (`sortStageRows`,
    `buildStagePendingCanvas` em `public/index.html`), fora do que
    `aggregate.test.mjs` cobre (agregação) e do que `shot.mjs` verifica hoje
@@ -384,4 +391,5 @@ essa coluna (as demais seguem válidas). Assumindo que ninguém assinou ainda
 `Feito` do certificado passa a contar como `partial`: overall geral cai para
 14% e o topo mostra 15 documentos esperando assinatura (14 da procuração + 1
 do certificado). Reler a base para confirmar os números reais na próxima
-atualização deste snapshot.
+atualização deste snapshot — incluindo a distribuição da coluna `Foto`
+(etapa adicionada em 27/08/2026, depois deste snapshot ter sido tirado).

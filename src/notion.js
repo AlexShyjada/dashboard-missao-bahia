@@ -18,6 +18,14 @@ const STAGES = [
     aliases: ["Já ligou", "Ligou", "Ja ligou?"],
   },
   {
+    // Coluna "Files & media", mesma usada em CANDIDATE_FIELDS.photo para a
+    // seção de pendência — aqui só a contagem (tem foto ou não), sem nome/URL.
+    key: "foto",
+    label: "Foto do candidato",
+    property: "Foto",
+    aliases: ["Foto do candidato", "Foto candidato"],
+  },
+  {
     key: "abertura_conta",
     label: "Requerimento de abertura de conta",
     property: "Já mandou o requerimento de abertura de conta?",
